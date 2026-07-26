@@ -18,6 +18,7 @@ export const OPMLModal: React.FC<OPMLModalProps> = ({
   isImporting,
 }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [copied, setCopied] = useState(false);
 
   if (!isOpen) return null;
 
@@ -35,7 +36,7 @@ export const OPMLModal: React.FC<OPMLModalProps> = ({
     onClose();
   };
 
-  const handleExportDownload = async () => {
+  const getOpmlXmlString = async () => {
     const folders = await clientDb.getFolders();
     const feeds = await clientDb.getFeeds();
 
@@ -50,26 +51,49 @@ export const OPMLModal: React.FC<OPMLModalProps> = ({
         .map((f) => ({ title: f.title, xmlUrl: f.feed_url, htmlUrl: f.site_url || undefined })),
     }));
 
-    const xml = generateOPML({
+    return generateOPML({
       title: 'AwesomeReader Subscriptions',
       folders: opmlFolders,
       rootFeeds,
     });
+  };
 
-    const blob = new Blob([xml], { type: 'text/x-opml+xml;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'awesomereader-subscriptions.opml';
-    link.click();
-    URL.revokeObjectURL(url);
+  const handleExportDownload = async () => {
+    try {
+      const xml = await getOpmlXmlString();
+      const fileName = 'awesomereader-subscriptions.opml';
+
+      const blob = new Blob([xml], { type: 'text/x-opml+xml;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (err: any) {
+      alert(`Export failed: ${err?.message || err}`);
+    }
+  };
+
+  const handleCopyOpmlXml = async () => {
+    try {
+      const xml = await getOpmlXmlString();
+      await navigator.clipboard.writeText(xml);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch (err: any) {
+      alert('Failed to copy OPML XML: ' + err?.message);
+    }
   };
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal-content animate-slide-up" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h3>Inoreader OPML Import & Export</h3>
+          <h3>OPML Import & Export</h3>
           <button className="close-btn" onClick={onClose}>✕</button>
         </div>
 
@@ -87,7 +111,7 @@ export const OPMLModal: React.FC<OPMLModalProps> = ({
             {selectedFile && <div className="file-info">Selected: {selectedFile.name}</div>}
 
             <button type="submit" className="btn-action" disabled={!selectedFile || isImporting}>
-              {isImporting ? 'Importing Inoreader OPML...' : 'Start OPML Import'}
+              {isImporting ? 'Importing OPML...' : 'Start OPML Import'}
             </button>
           </form>
         </div>
@@ -95,11 +119,17 @@ export const OPMLModal: React.FC<OPMLModalProps> = ({
         <div className="divider" />
 
         <div className="opml-section">
-          <h4>📤 Export Subscriptions</h4>
-          <p className="desc">Download your AwesomeReader subscription feeds and folder hierarchy as a standard OPML file.</p>
-          <button type="button" className="btn-secondary" onClick={handleExportDownload}>
-            Download OPML Backup
-          </button>
+          <h4>📤 Export Subscriptions Backup</h4>
+          <p className="desc">Download your AwesomeReader subscription feeds and folder hierarchy as an OPML file or copy the raw XML backup.</p>
+          
+          <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+            <button type="button" className="btn-action" onClick={handleExportDownload} style={{ flex: 1 }}>
+              💾 Download OPML File
+            </button>
+            <button type="button" className="btn-secondary" onClick={handleCopyOpmlXml} style={{ minWidth: '140px' }}>
+              {copied ? '✓ Copied!' : '📋 Copy OPML XML'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

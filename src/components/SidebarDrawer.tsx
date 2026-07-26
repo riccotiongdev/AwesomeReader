@@ -50,7 +50,21 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
   const [activeMenuFeedId, setActiveMenuFeedId] = useState<string | null>(null);
   const [activeMenuFolderId, setActiveMenuFolderId] = useState<string | null>(null);
   const [draggedOverFolderId, setDraggedOverFolderId] = useState<string | null | '__ROOT__'>(null);
+  const [collapsedFolderIds, setCollapsedFolderIds] = useState<Set<string>>(new Set());
   const isAllSelected = !selectedFolderId && !selectedFeedId;
+
+  const toggleFolderCollapse = (folderId: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setCollapsedFolderIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(folderId)) {
+        next.delete(folderId);
+      } else {
+        next.add(folderId);
+      }
+      return next;
+    });
+  };
 
   const handleDragStart = (e: React.DragEvent, feedId: string) => {
     e.dataTransfer.setData('text/plain', feedId);
@@ -171,6 +185,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
             );
             const isTargetedByDrag = draggedOverFolderId === folder.id;
             const isFolderMenuOpen = activeMenuFolderId === folder.id;
+            const isExpanded = !collapsedFolderIds.has(folder.id);
 
             return (
               <div key={folder.id} className="folder-group">
@@ -180,6 +195,9 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
                       isTargetedByDrag ? 'drag-over' : ''
                     }`}
                     onClick={() => {
+                      if (collapsedFolderIds.has(folder.id)) {
+                        toggleFolderCollapse(folder.id);
+                      }
                       onSelectFolder(folder.id);
                       onCloseMobile();
                     }}
@@ -188,7 +206,14 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
                     onDragLeave={() => setDraggedOverFolderId(null)}
                     onDrop={(e) => handleFolderDrop(e, folder.id)}
                   >
-                    <span className="nav-icon">📁</span>
+                    <span
+                      className="folder-toggle-arrow"
+                      onClick={(e) => toggleFolderCollapse(folder.id, e)}
+                      title={isExpanded ? 'Collapse folder' : 'Expand folder'}
+                    >
+                      {isExpanded ? '▾' : '▸'}
+                    </span>
+                    <span className="nav-icon">{isExpanded ? '📂' : '📁'}</span>
                     <span className="nav-label">{decodeHtmlEntities(folder.name)}</span>
                     {Boolean(folderUnreadCount) && (
                       <span className="badge">{folderUnreadCount}</span>
@@ -221,82 +246,86 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
                   )}
                 </div>
 
-                {/* Feeds inside Folder */}
-                <div className="folder-feeds-list">
-                  {folderFeeds.map((feed) => {
-                    const isFeedActive = selectedFeedId === feed.id;
-                    const isMenuOpen = activeMenuFeedId === feed.id;
-                    const cleanTitle = decodeHtmlEntities(feed.title);
+                {/* Feeds inside Folder (Only shown when expanded) */}
+                {isExpanded && (
+                  <div className="folder-feeds-list indented animate-fade-in">
+                    {folderFeeds.map((feed) => {
+                      const isFeedActive = selectedFeedId === feed.id;
+                      const isMenuOpen = activeMenuFeedId === feed.id;
+                      const cleanTitle = decodeHtmlEntities(feed.title);
 
-                    return (
-                      <div key={feed.id} className="feed-item-wrapper">
-                        <button
-                          className={`nav-item feed-item ${isFeedActive ? 'active' : ''}`}
-                          draggable={true}
-                          onDragStart={(e) => handleDragStart(e, feed.id)}
-                          onClick={() => {
-                            onSelectFeed(feed.id);
-                            onCloseMobile();
-                          }}
-                        >
-                          <span className="nav-icon">📡</span>
-                          <span className="nav-label" title={cleanTitle}>{cleanTitle}</span>
-                          {Boolean(feed.unread_count) && (
-                            <span className="badge mini">{feed.unread_count}</span>
-                          )}
-                        </button>
+                      return (
+                        <div key={feed.id} className="feed-item-wrapper">
+                          <button
+                            className={`nav-item feed-item ${isFeedActive ? 'active' : ''}`}
+                            draggable={true}
+                            onDragStart={(e) => handleDragStart(e, feed.id)}
+                            onClick={() => {
+                              onSelectFeed(feed.id);
+                              onCloseMobile();
+                            }}
+                          >
+                            <span className="nav-icon">📡</span>
+                            <span className="nav-label" title={cleanTitle}>{cleanTitle}</span>
+                            {Boolean(feed.unread_count) && (
+                              <span className="badge mini">{feed.unread_count}</span>
+                            )}
+                          </button>
 
-                        <button
-                          className="feed-menu-btn"
-                          title="Manage subscription"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActiveMenuFeedId(isMenuOpen ? null : feed.id);
-                          }}
-                        >
-                          ⋮
-                        </button>
+                          <button
+                            className="feed-menu-btn"
+                            title="Manage subscription"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveMenuFeedId(isMenuOpen ? null : feed.id);
+                            }}
+                          >
+                            ⋮
+                          </button>
 
-                        {isMenuOpen && (
-                          <div className="feed-popover-menu animate-fade-in">
-                            <span className="menu-header">Move to Folder:</span>
-                            <button
-                              className="menu-option"
-                              onClick={() => {
-                                onMoveFeedToFolder(feed.id, null);
-                                setActiveMenuFeedId(null);
-                              }}
-                            >
-                              📂 Root (No folder)
-                            </button>
-                            {folders.map((f) => (
+                          {isMenuOpen && (
+                            <div className="feed-popover-menu animate-fade-in">
+                              <div className="menu-header">Move to Folder</div>
                               <button
-                                key={f.id}
-                                className="menu-option"
+                                className={`menu-option ${!feed.folder_id ? 'active' : ''}`}
                                 onClick={() => {
-                                  onMoveFeedToFolder(feed.id, f.id);
                                   setActiveMenuFeedId(null);
+                                  onMoveFeedToFolder(feed.id, null);
                                 }}
                               >
-                                📁 {f.name}
+                                📄 Uncategorized (Root)
                               </button>
-                            ))}
-                            <div className="menu-divider" />
-                            <button
-                              className="menu-option danger"
-                              onClick={() => {
-                                setActiveMenuFeedId(null);
-                                onDeleteFeed(feed.id, feed.title);
-                              }}
-                            >
-                              🗑 Delete Subscription
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+                              {folders.map((f) => (
+                                <button
+                                  key={f.id}
+                                  className={`menu-option ${feed.folder_id === f.id ? 'active' : ''}`}
+                                  onClick={() => {
+                                    setActiveMenuFeedId(null);
+                                    onMoveFeedToFolder(feed.id, f.id);
+                                  }}
+                                >
+                                  📁 {decodeHtmlEntities(f.name)}
+                                </button>
+                              ))}
+
+                              <div className="menu-divider" />
+
+                              <button
+                                className="menu-option danger"
+                                onClick={() => {
+                                  setActiveMenuFeedId(null);
+                                  onDeleteFeed(feed.id, feed.title);
+                                }}
+                              >
+                                🗑 Unsubscribe
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             );
           })}

@@ -584,6 +584,35 @@ body {
   gap: 2px;
 }
 
+.folder-toggle-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-right: 0.3rem;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.folder-toggle-arrow:hover {
+  color: var(--text-primary);
+}
+
+.folder-feeds-list.indented {
+  margin-left: 0.85rem;
+  padding-left: 0.5rem;
+  border-left: 2px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 2px;
+  margin-bottom: 4px;
+}
+
 .folder-item-wrapper .folder-item,
 .feed-item-wrapper .feed-item {
   flex: 1;
