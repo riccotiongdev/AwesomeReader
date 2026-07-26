@@ -49,11 +49,14 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
 
   return (
     <article
-      className={`article-card ${article.is_read ? 'read' : 'unread'} ${imageUrl ? 'has-left-thumbnail' : ''}`}
+      className={`article-card ${article.is_read ? 'read' : 'unread'}`}
       onClick={() => onSelect(article)}
     >
-      <div className="card-body-layout">
-        {/* Left Column: Image Thumbnail */}
+      {/* TOP: Full-width Article Title */}
+      <h3 className="article-title">{cleanArticleTitle}</h3>
+
+      {/* MIDDLE: Thumbnail Left + Details / Abstract Right */}
+      <div className="card-middle-row">
         {imageUrl && (
           <div className="card-left-thumbnail-wrapper animate-fade-in">
             <img
@@ -68,44 +71,40 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
           </div>
         )}
 
-        {/* Right Column: Title, Snippet & Metadata */}
-        <div className="card-right-content">
-          <h3 className="article-title">{cleanArticleTitle}</h3>
+        {article.summary && (
+          <p
+            className="article-snippet"
+            dangerouslySetInnerHTML={{
+              __html: decodeHtmlEntities(article.summary.replace(/<[^>]*>?/gm, ''))
+            }}
+          />
+        )}
+      </div>
 
-          {article.summary && (
-            <p
-              className="article-snippet"
-              dangerouslySetInnerHTML={{
-                __html: decodeHtmlEntities(article.summary.replace(/<[^>]*>?/gm, ''))
-              }}
-            />
-          )}
+      {/* BOTTOM: Feed / Article Date Left + Actions Right */}
+      <div className="card-meta-row">
+        <div className="meta-left">
+          <span className="feed-title" title={cleanFeedTitle}>{cleanFeedTitle}</span>
+          <span className="dot-sep">•</span>
+          <span className="publish-date">{formattedDate}</span>
+        </div>
 
-          <div className="card-meta-row">
-            <div className="meta-left">
-              <span className="feed-title" title={cleanFeedTitle}>{cleanFeedTitle}</span>
-              <span className="dot-sep">•</span>
-              <span className="publish-date">{formattedDate}</span>
-            </div>
+        <div className="meta-actions">
+          <button
+            className={`star-btn ${article.is_starred ? 'starred' : ''}`}
+            onClick={(e) => onToggleStar(article.id, article.is_starred, e)}
+            title={article.is_starred ? 'Unstar' : 'Star'}
+          >
+            {article.is_starred ? '★' : '☆'}
+          </button>
 
-            <div className="meta-actions">
-              <button
-                className={`star-btn ${article.is_starred ? 'starred' : ''}`}
-                onClick={(e) => onToggleStar(article.id, article.is_starred, e)}
-                title={article.is_starred ? 'Unstar' : 'Star'}
-              >
-                {article.is_starred ? '★' : '☆'}
-              </button>
-
-              <button
-                className="read-toggle-btn"
-                onClick={(e) => onToggleRead(article.id, article.is_read, e)}
-                title={article.is_read ? 'Mark as unread' : 'Mark as read'}
-              >
-                {article.is_read ? 'Unread' : 'Read'}
-              </button>
-            </div>
-          </div>
+          <button
+            className="read-toggle-btn"
+            onClick={(e) => onToggleRead(article.id, article.is_read, e)}
+            title={article.is_read ? 'Mark as unread' : 'Mark as read'}
+          >
+            {article.is_read ? 'Unread' : 'Read'}
+          </button>
         </div>
       </div>
     </article>
