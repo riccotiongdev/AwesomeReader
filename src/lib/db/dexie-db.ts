@@ -191,6 +191,20 @@ export class AwesomeReaderDB extends Dexie {
     await this.articles.put(updated);
     return updated;
   }
+
+  async markArticlesAsRead(articleIds: string[]): Promise<void> {
+    if (articleIds.length === 0) return;
+    await this.transaction('rw', this.articles, async () => {
+      for (const id of articleIds) {
+        const article = await this.articles.get(id);
+        if (article && !article.is_read) {
+          article.is_read = true;
+          article.read_at = new Date().toISOString();
+          await this.articles.put(article);
+        }
+      }
+    });
+  }
 }
 
 export const clientDb = new AwesomeReaderDB();

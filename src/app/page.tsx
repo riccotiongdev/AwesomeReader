@@ -327,6 +327,18 @@ export default function HomePage() {
     await clientDb.updateArticleState(articleId, { is_starred: !currentStarred });
   };
 
+  // Mark All Currently Filtered Articles as Read
+  const handleMarkAllAsRead = async () => {
+    const unreadArticleIds = filteredArticles.filter((a) => !a.is_read).map((a) => a.id);
+    if (unreadArticleIds.length === 0) return;
+
+    if (confirm(`Mark ${unreadArticleIds.length} article(s) in this view as read?`)) {
+      await clientDb.markArticlesAsRead(unreadArticleIds);
+      await loadFeedsAndFolders();
+      await loadArticles();
+    }
+  };
+
   // Open Article Reader
   const handleSelectArticle = (article: Article) => {
     setActiveArticle(article);
@@ -469,6 +481,20 @@ export default function HomePage() {
                 );
               })}
             </div>
+          )}
+
+          {/* Floating Mark All as Read Action Button */}
+          {filteredArticles.some((a) => !a.is_read) && (
+            <button
+              className="fab-mark-all-read animate-fade-in"
+              onClick={handleMarkAllAsRead}
+              title="Mark all articles in this view as read"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+              <span>Mark All Read</span>
+            </button>
           )}
         </main>
       </div>
