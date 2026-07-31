@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Article } from '@/types';
 import { fetchOgImageForArticle } from '@/lib/services/thumbnail-enricher';
 import { decodeHtmlEntities } from '@/lib/utils/html-decoder';
@@ -9,8 +9,8 @@ interface ArticleCardProps {
   article: Article;
   feedTitle?: string;
   onSelect: (article: Article) => void;
-  onToggleStar: (articleId: string, currentStarred: boolean, e: React.MouseEvent) => void;
-  onToggleRead: (articleId: string, currentRead: boolean, e: React.MouseEvent) => void;
+  onToggleStar: (articleId: string, currentStarred: boolean, e?: React.MouseEvent) => void;
+  onToggleRead: (articleId: string, currentRead: boolean, e?: React.MouseEvent) => void;
 }
 
 export const ArticleCard: React.FC<ArticleCardProps> = ({
@@ -20,7 +20,9 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
   onToggleStar,
   onToggleRead,
 }) => {
+  const cardRef = useRef<HTMLElement | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(article.image_url || null);
+  const hasAutoReadRef = useRef(false);
 
   useEffect(() => {
     setImageUrl(article.image_url || null);
@@ -38,6 +40,38 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
     }
   }, [article]);
 
+  // Mark as read ONLY when the card scrolls past top of viewport and disappears
+  useEffect(() => {
+    if (article.is_read || hasAutoReadRef.current) return;
+
+    const el = cardRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          // When card exits viewport and its bottom edge is above the top of screen (< 0),
+          // it has fully scrolled past the view and disappeared off top!
+          if (!entry.isIntersecting && entry.boundingClientRect.bottom < 0) {
+            if (!article.is_read && !hasAutoReadRef.current) {
+              hasAutoReadRef.current = true;
+              onToggleRead(article.id, false);
+            }
+          }
+        });
+      },
+      {
+        threshold: 0, // Trigger boundary check when card exits viewport
+      }
+    );
+
+    observer.observe(el);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [article.id, article.is_read, onToggleRead]);
+
   const formattedDate = new Date(article.published_at).toLocaleDateString(undefined, {
     year: 'numeric',
     month: 'short',
@@ -49,6 +83,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
 
   return (
     <article
+      ref={cardRef}
       className={`article-card ${article.is_read ? 'read' : 'unread'}`}
       onClick={() => onSelect(article)}
     >
@@ -100,7 +135,10 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
 
           <button
             className="read-toggle-btn"
-            onClick={(e) => onToggleRead(article.id, article.is_read, e)}
+            onClick={(e) => {
+              hasAutoReadRef.current = true;
+              onToggleRead(article.id, article.is_read, e);
+            }}
             title={article.is_read ? 'Mark as unread' : 'Mark as read'}
           >
             {article.is_read ? 'Unread' : 'Read'}
