@@ -346,17 +346,57 @@ export default function HomePage() {
     await clientDb.updateArticleState(articleId, { is_starred: !currentStarred });
   };
 
-  // Mark All Currently Filtered Articles as Read
+  // Mark All Currently Filtered Articles as Read and auto-navigate to next feed with unreads
   const handleMarkAllAsRead = async () => {
     const unreadArticleIds = filteredArticles.filter((a) => !a.is_read).map((a) => a.id);
     if (unreadArticleIds.length === 0) return;
 
     if (confirm(`Mark ${unreadArticleIds.length} article(s) in this view as read?`)) {
       await clientDb.markArticlesAsRead(unreadArticleIds);
-      setArticles((prev) =>
-        prev.map((a) => (unreadArticleIds.includes(a.id) ? { ...a, is_read: true } : a))
-      );
-      await loadFeedsAndFolders();
+      
+      // Refresh feeds/folders from DB to get updated unread counts
+      const updatedFeeds = await clientDb.getFeeds();
+      const updatedFolders = await clientDb.getFolders();
+      setFeeds(updatedFeeds);
+      setFolders(updatedFolders);
+
+      // Find next feed with unread articles
+      let nextFeedId: string | null = null;
+
+      if (selectedFeedId) {
+        const currentIndex = updatedFeeds.findIndex((f) => f.id === selectedFeedId);
+        // Look for the next feed after currentIndex that has unread_count > 0
+        const remainingFeeds = updatedFeeds.slice(currentIndex + 1);
+        const nextFeedWithUnread = remainingFeeds.find((f) => (f.unread_count || 0) > 0);
+
+        if (nextFeedWithUnread) {
+          nextFeedId = nextFeedWithUnread.id;
+        } else {
+          // If no next feed after current, check from start of list before current
+          const earlierFeeds = updatedFeeds.slice(0, currentIndex);
+          const earlierFeedWithUnread = earlierFeeds.find((f) => (f.unread_count || 0) > 0);
+          if (earlierFeedWithUnread) {
+            nextFeedId = earlierFeedWithUnread.id;
+          }
+        }
+      } else if (selectedFolderId) {
+        // If in a folder, check next feed with unread
+        const unreadFeed = updatedFeeds.find((f) => (f.unread_count || 0) > 0);
+        if (unreadFeed) {
+          nextFeedId = unreadFeed.id;
+        }
+      }
+
+      if (nextFeedId) {
+        // Switch to the next feed with unread articles
+        setSelectedFeedId(nextFeedId);
+        setSelectedFolderId(null);
+      } else {
+        // No more feeds with unread articles -> Go to All Subscriptions
+        setSelectedFeedId(null);
+        setSelectedFolderId(null);
+        await loadArticles();
+      }
     }
   };
 
