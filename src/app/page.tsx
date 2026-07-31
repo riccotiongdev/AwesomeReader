@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Header } from '@/components/Header';
 import { SidebarDrawer } from '@/components/SidebarDrawer';
 import { ArticleCard } from '@/components/ArticleCard';
@@ -49,10 +49,20 @@ export default function HomePage() {
   const [isImportingOpml, setIsImportingOpml] = useState(false);
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
 
-  // Reader Focus Article
+  // Reader Focus Article & Main Scroll Ref
+  const mainRef = useRef<HTMLElement | null>(null);
   const [activeArticle, setActiveArticle] = useState<Article | null>(null);
   const [isExtractingText, setIsExtractingText] = useState(false);
   const [viewUnreadIds, setViewUnreadIds] = useState<Set<string>>(new Set());
+
+  const scrollToTop = useCallback(() => {
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'auto' });
+    }
+    if (mainRef.current) {
+      mainRef.current.scrollTop = 0;
+    }
+  }, []);
 
   // Feed Preview Focus
   const [previewFeedUrl, setPreviewFeedUrl] = useState<string | null>(null);
@@ -114,7 +124,10 @@ export default function HomePage() {
     // Snapshot unread IDs at load time so read items stay in list until feed change/refresh
     const initialUnreadIds = new Set(list.filter((a) => !a.is_read).map((a) => a.id));
     setViewUnreadIds(initialUnreadIds);
-  }, [selectedFeedId, selectedFolderId]);
+
+    // Scroll to top of list when switching feed or folder
+    scrollToTop();
+  }, [selectedFeedId, selectedFolderId, scrollToTop]);
 
   // Create standalone folder
   const handleCreateFolder = async (folderName: string) => {
@@ -264,6 +277,7 @@ export default function HomePage() {
 
     await loadFeedsAndFolders();
     await loadArticles();
+    scrollToTop();
     setIsRefreshing(false);
   };
 
@@ -388,7 +402,8 @@ export default function HomePage() {
       const currentUnread = new Set(articles.filter((a) => !a.is_read).map((a) => a.id));
       setViewUnreadIds(currentUnread);
     }
-  }, [activeTab]);
+    scrollToTop();
+  }, [activeTab, scrollToTop]);
 
   // Filter Articles
   const filteredArticles = articles.filter((article) => {
@@ -455,7 +470,7 @@ export default function HomePage() {
           totalUnreadCount={totalUnreadCount}
         />
 
-        <main className="timeline-area">
+        <main className="timeline-area" ref={mainRef}>
           <div className="timeline-header">
             <h2>
               {decodeHtmlEntities(
