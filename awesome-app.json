@@ -1,0 +1,12 @@
+{
+  "name": "AwesomeReader",
+  "description": "A modern, offline-first RSS Feed Reader with OLED dark mode, paywall bypass, and OPML support",
+  "version": "1.0.0",
+  "icon": "public/icon.png",
+  "build": {
+    "install": "npm install",
+    "command": "npm run build",
+    "output": "dist"
+  },
+  "entry": "index.html"
+}
