@@ -19,6 +19,14 @@ import { extractFullArticle } from '@/lib/services/readability';
 import { decodeHtmlEntities } from '@/lib/utils/html-decoder';
 
 import { App } from '@capacitor/app';
+import { StatusBar, Style } from '@capacitor/status-bar';
+import { Capacitor, registerPlugin } from '@capacitor/core';
+
+interface NavigationBarPluginInterface {
+  setColor(options: { color: string; darkButtons?: boolean }): Promise<void>;
+}
+
+const NavigationBar = registerPlugin<NavigationBarPluginInterface>('NavigationBar');
 
 export default function HomePage() {
   const [folders, setFolders] = useState<Folder[]>([]);
@@ -102,6 +110,19 @@ export default function HomePage() {
       localStorage.setItem('awesomereader_theme', theme);
     } catch (e) {
       console.warn('Failed to save theme preference:', e);
+    }
+
+    if (Capacitor.isNativePlatform()) {
+      const themeColors: Record<string, string> = {
+        oled: '#000000',
+        sepia: '#fbf0d9',
+        light: '#ffffff',
+      };
+      const isLight = theme === 'sepia' || theme === 'light';
+      const activeColor = themeColors[theme] || '#000000';
+      StatusBar.setBackgroundColor({ color: activeColor }).catch(() => {});
+      StatusBar.setStyle({ style: isLight ? Style.Light : Style.Dark }).catch(() => {});
+      NavigationBar.setColor({ color: activeColor, darkButtons: isLight }).catch(() => {});
     }
   }, [theme]);
 

@@ -2,6 +2,14 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Article } from '@/types';
+import { StatusBar, Style } from '@capacitor/status-bar';
+import { Capacitor, registerPlugin } from '@capacitor/core';
+
+interface NavigationBarPluginInterface {
+  setColor(options: { color: string; darkButtons?: boolean }): Promise<void>;
+}
+
+const NavigationBar = registerPlugin<NavigationBarPluginInterface>('NavigationBar');
 
 interface ArticleReaderModalProps {
   article: Article | null;
@@ -20,7 +28,8 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
   onExtractFullText,
   isExtracting,
 }) => {
-  const [scrollProgress, setScrollProgress] = useState(0);
+  const progressBarRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const [fontFamily, setFontFamily] = useState<'serif' | 'sans' | 'mono'>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('awesomereader_reader_font');
@@ -42,7 +51,6 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
     }
     return 'oled';
   });
-  const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     try {
@@ -54,22 +62,62 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
     }
   }, [fontFamily, fontSize, readerTheme]);
 
+  // System bar color sync for Reader Modal Theme
   useEffect(() => {
+    if (!article) return;
+
+    const themeColors: Record<string, string> = {
+      oled: '#000000',
+      sepia: '#fbf0d9',
+      paper: '#f8f6f0',
+      light: '#ffffff',
+    };
+    const activeColor = themeColors[readerTheme] || '#000000';
+    const isLight = readerTheme === 'sepia' || readerTheme === 'paper' || readerTheme === 'light';
+
+    if (Capacitor.isNativePlatform()) {
+      StatusBar.setBackgroundColor({ color: activeColor }).catch(() => {});
+      StatusBar.setStyle({ style: isLight ? Style.Light : Style.Dark }).catch(() => {});
+      NavigationBar.setColor({ color: activeColor, darkButtons: isLight }).catch(() => {});
+    }
+
+    return () => {
+      if (Capacitor.isNativePlatform()) {
+        const mainTheme = document.documentElement.getAttribute('data-theme') || 'oled';
+        const mainColors: Record<string, string> = {
+          oled: '#000000',
+          sepia: '#fbf0d9',
+          light: '#ffffff',
+        };
+        const mainIsLight = mainTheme === 'sepia' || mainTheme === 'light';
+        const mainColor = mainColors[mainTheme] || '#000000';
+        StatusBar.setBackgroundColor({ color: mainColor }).catch(() => {});
+        StatusBar.setStyle({ style: mainIsLight ? Style.Light : Style.Dark }).catch(() => {});
+        NavigationBar.setColor({ color: mainColor, darkButtons: mainIsLight }).catch(() => {});
+      }
+    };
+  }, [article, readerTheme]);
+
+  useEffect(() => {
+    let ticking = false;
     const handleScroll = () => {
-      if (!contentRef.current) return;
-      const { scrollTop, scrollHeight, clientHeight } = contentRef.current;
-      const totalScroll = scrollHeight - clientHeight;
-      if (totalScroll <= 0) {
-        setScrollProgress(100);
-      } else {
-        const currentProgress = (scrollTop / totalScroll) * 100;
-        setScrollProgress(Math.min(100, Math.max(0, currentProgress)));
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          if (contentRef.current && progressBarRef.current) {
+            const { scrollTop, scrollHeight, clientHeight } = contentRef.current;
+            const totalScroll = scrollHeight - clientHeight;
+            const currentProgress = totalScroll <= 0 ? 100 : (scrollTop / totalScroll) * 100;
+            progressBarRef.current.style.width = `${Math.min(100, Math.max(0, currentProgress))}%`;
+          }
+          ticking = false;
+        });
+        ticking = true;
       }
     };
 
     const currentEl = contentRef.current;
     if (currentEl) {
-      currentEl.addEventListener('scroll', handleScroll);
+      currentEl.addEventListener('scroll', handleScroll, { passive: true });
     }
 
     return () => {
@@ -87,7 +135,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
     <div className="reader-modal-backdrop animate-fade-in" data-reader-theme={readerTheme}>
       {/* Top Reading Progress Bar */}
       <div className="progress-bar-container">
-        <div className="progress-bar" style={{ width: `${scrollProgress}%` }} />
+        <div className="progress-bar" ref={progressBarRef} style={{ width: '0%' }} />
       </div>
 
       {/* Reader Control Header */}

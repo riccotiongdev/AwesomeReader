@@ -1148,6 +1148,9 @@ body {
 .reader-scroll-area {
   flex: 1;
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  will-change: scroll-position;
+  contain: content;
   padding: 2rem 1.5rem 4rem 1.5rem;
   display: flex;
   justify-content: center;
