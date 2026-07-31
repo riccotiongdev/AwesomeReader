@@ -52,6 +52,7 @@ export default function HomePage() {
   // Reader Focus Article
   const [activeArticle, setActiveArticle] = useState<Article | null>(null);
   const [isExtractingText, setIsExtractingText] = useState(false);
+  const [viewUnreadIds, setViewUnreadIds] = useState<Set<string>>(new Set());
 
   // Feed Preview Focus
   const [previewFeedUrl, setPreviewFeedUrl] = useState<string | null>(null);
@@ -109,6 +110,10 @@ export default function HomePage() {
       folderId: selectedFolderId || undefined,
     });
     setArticles(list);
+
+    // Snapshot unread IDs at load time so read items stay in list until feed change/refresh
+    const initialUnreadIds = new Set(list.filter((a) => !a.is_read).map((a) => a.id));
+    setViewUnreadIds(initialUnreadIds);
   }, [selectedFeedId, selectedFolderId]);
 
   // Create standalone folder
@@ -334,8 +339,10 @@ export default function HomePage() {
 
     if (confirm(`Mark ${unreadArticleIds.length} article(s) in this view as read?`)) {
       await clientDb.markArticlesAsRead(unreadArticleIds);
+      setArticles((prev) =>
+        prev.map((a) => (unreadArticleIds.includes(a.id) ? { ...a, is_read: true } : a))
+      );
       await loadFeedsAndFolders();
-      await loadArticles();
     }
   };
 
@@ -375,10 +382,22 @@ export default function HomePage() {
     }
   };
 
+  // Re-sync viewUnreadIds when activeTab changes
+  useEffect(() => {
+    if (articles.length > 0) {
+      const currentUnread = new Set(articles.filter((a) => !a.is_read).map((a) => a.id));
+      setViewUnreadIds(currentUnread);
+    }
+  }, [activeTab]);
+
   // Filter Articles
   const filteredArticles = articles.filter((article) => {
-    if (activeTab === 'unread' && article.is_read) return false;
-    if (activeTab === 'starred' && !article.is_starred) return false;
+    if (activeTab === 'unread') {
+      const wasUnreadOnLoad = viewUnreadIds.has(article.id);
+      if (article.is_read && !wasUnreadOnLoad) return false;
+    } else if (activeTab === 'starred') {
+      if (!article.is_starred) return false;
+    }
 
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
