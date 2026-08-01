@@ -17,6 +17,9 @@ export default defineConfig({
     outDir: 'dist',
     sourcemap: true,
   },
+  worker: {
+    format: 'es',
+  },
   test: {
     environment: 'node',
     include: ['src/**/*.test.ts'],

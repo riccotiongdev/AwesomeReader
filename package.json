@@ -22,6 +22,7 @@
     "@mozilla/readability": "^0.5.0",
     "dexie": "^4.0.11",
     "fast-xml-parser": "^4.5.3",
+    "linkedom": "^0.18.13",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "rss-parser": "^3.13.0",

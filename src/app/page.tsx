@@ -450,7 +450,7 @@ export default function HomePage() {
       const articleToExtract = articles.find((a) => a.id === articleId) || activeArticle;
       if (!articleToExtract) throw new Error('Article not found');
 
-      const extracted = await extractFullArticle(articleToExtract.url);
+      const extracted = await extractFullArticle(articleToExtract.url, { timeoutMs: 30000 });
       const newImageUrl = extracted.lead_image_url || articleToExtract.image_url || null;
 
       const updated = await clientDb.updateArticleState(articleId, {
