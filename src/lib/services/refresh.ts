@@ -49,53 +49,87 @@ export interface FeedRefreshOutcome {
   error?: string;
 }
 
+export interface RefreshOptions {
+  /** Max number of feeds crawled at once. Higher = faster but hammers servers. */
+  concurrency?: number;
+}
+
+export const DEFAULT_REFRESH_CONCURRENCY = 4;
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T, index: number) => Promise<R>
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let cursor = 0;
+
+  const worker = async () => {
+    while (cursor < items.length) {
+      const index = cursor++;
+      results[index] = await fn(items[index], index);
+    }
+  };
+
+  const workerCount = Math.max(1, Math.min(limit, items.length));
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  return results;
+}
+
+async function refreshFeed(
+  feed: Feed,
+  deps: RefreshDeps,
+  fetchedAt: string
+): Promise<FeedRefreshOutcome> {
+  try {
+    const crawl = await deps.fetchFeed(feed.feed_url, {
+      etag: feed.etag || undefined,
+      lastModified: feed.last_modified || undefined,
+    });
+
+    if (crawl.notModified) {
+      await deps.updateFeedCrawlState(feed.id, { last_fetched_at: fetchedAt });
+      return { feedId: feed.id, status: 'not_modified' };
+    }
+
+    if (crawl.result) {
+      await deps.saveArticles(
+        crawl.result.articles.map((art) => ({
+          feed_id: feed.id,
+          guid: art.guid,
+          title: art.title,
+          url: art.url,
+          published_at: art.publishedAt,
+          author: art.author,
+          summary: art.summary,
+          content: art.content,
+          image_url: art.image_url,
+        }))
+      );
+      await deps.updateFeedCrawlState(feed.id, {
+        etag: crawl.result.etag || null,
+        last_modified: crawl.result.lastModified || null,
+        last_fetched_at: fetchedAt,
+      });
+      return { feedId: feed.id, status: 'updated' };
+    }
+
+    return { feedId: feed.id, status: 'error', error: 'Empty feed result' };
+  } catch (err: any) {
+    return { feedId: feed.id, status: 'error', error: err?.message || String(err) };
+  }
+}
+
 export async function refreshFeedsForView(
   feeds: Feed[],
   selection: FeedSelection,
-  deps: RefreshDeps
+  deps: RefreshDeps,
+  options: RefreshOptions = {}
 ): Promise<FeedRefreshOutcome[]> {
   const inScope = resolveFeedScope(feeds, selection);
-  const outcomes: FeedRefreshOutcome[] = [];
+  const fetchedAt = deps.now ? deps.now() : new Date().toISOString();
+  const concurrency = options.concurrency ?? DEFAULT_REFRESH_CONCURRENCY;
 
-  for (const feed of inScope) {
-    try {
-      const crawl = await deps.fetchFeed(feed.feed_url, {
-        etag: feed.etag || undefined,
-        lastModified: feed.last_modified || undefined,
-      });
-      const fetchedAt = deps.now ? deps.now() : new Date().toISOString();
-
-      if (crawl.notModified) {
-        await deps.updateFeedCrawlState(feed.id, { last_fetched_at: fetchedAt });
-        outcomes.push({ feedId: feed.id, status: 'not_modified' });
-        continue;
-      }
-
-      if (crawl.result) {
-        await deps.saveArticles(
-          crawl.result.articles.map((art) => ({
-            feed_id: feed.id,
-            guid: art.guid,
-            title: art.title,
-            url: art.url,
-            published_at: art.publishedAt,
-            author: art.author,
-            summary: art.summary,
-            content: art.content,
-            image_url: art.image_url,
-          }))
-        );
-        await deps.updateFeedCrawlState(feed.id, {
-          etag: crawl.result.etag || null,
-          last_modified: crawl.result.lastModified || null,
-          last_fetched_at: fetchedAt,
-        });
-        outcomes.push({ feedId: feed.id, status: 'updated' });
-      }
-    } catch (err: any) {
-      outcomes.push({ feedId: feed.id, status: 'error', error: err?.message || String(err) });
-    }
-  }
-
-  return outcomes;
+  // Crawl feeds in parallel (bounded), but keep outcome order aligned with the feed list.
+  return mapWithConcurrency(inScope, concurrency, (feed) => refreshFeed(feed, deps, fetchedAt));
 }

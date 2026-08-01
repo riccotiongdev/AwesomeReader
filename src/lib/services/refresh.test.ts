@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { Feed } from '@/types';
 import { resolveFeedScope, refreshFeedsForView, RefreshDeps } from '@/lib/services/refresh';
-
 const makeFeed = (id: string, folderId: string | null = null): Feed => ({
   id,
   folder_id: folderId,
@@ -187,5 +186,42 @@ describe('refreshFeedsForView', () => {
       deps
     );
     expect(outcomes).toEqual([{ feedId: 'f1', status: 'updated' }]);
+  });
+
+  it('crawls feeds concurrently without exceeding the configured limit', async () => {
+    let inFlight = 0;
+    let maxInFlight = 0;
+    const fetchFeed = vi.fn(async () => {
+      inFlight++;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      await new Promise((r) => setTimeout(r, 15));
+      inFlight--;
+      return { notModified: false, result: { feedTitle: 'F', articles: [] } };
+    });
+    const deps = makeDeps({ fetchFeed });
+
+    await refreshFeedsForView(feeds, { selectedFeedId: null, selectedFolderId: null }, deps, {
+      concurrency: 2,
+    });
+
+    expect(maxInFlight).toBeLessThanOrEqual(2);
+    expect(fetchFeed).toHaveBeenCalledTimes(4);
+  });
+
+  it('preserves outcome order matching the feed list despite parallel completion', async () => {
+    const fetchFeed = vi.fn(async (url: string) => {
+      await new Promise((r) => setTimeout(r, url.includes('f3') ? 40 : 5));
+      return { notModified: false, result: { feedTitle: 'F', articles: [] } };
+    });
+    const deps = makeDeps({ fetchFeed });
+
+    const outcomes = await refreshFeedsForView(
+      [feeds[1], feeds[2], feeds[3]],
+      { selectedFeedId: null, selectedFolderId: null },
+      deps,
+      { concurrency: 3 }
+    );
+
+    expect(outcomes.map((o) => o.feedId)).toEqual(['f2', 'f3', 'f4']);
   });
 });
