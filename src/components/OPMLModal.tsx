@@ -9,6 +9,7 @@ interface OPMLModalProps {
   onClose: () => void;
   onImportOpml: (file: File) => Promise<void>;
   isImporting: boolean;
+  onNotify?: (message: string, type?: 'info' | 'error' | 'success') => void;
 }
 
 export const OPMLModal: React.FC<OPMLModalProps> = ({
@@ -16,6 +17,7 @@ export const OPMLModal: React.FC<OPMLModalProps> = ({
   onClose,
   onImportOpml,
   isImporting,
+  onNotify,
 }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [copied, setCopied] = useState(false);
@@ -74,7 +76,8 @@ export const OPMLModal: React.FC<OPMLModalProps> = ({
       document.body.removeChild(link);
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (err: any) {
-      alert(`Export failed: ${err?.message || err}`);
+      if (onNotify) onNotify(`Export failed: ${err?.message || err}`, 'error');
+      else console.warn('Export failed:', err);
     }
   };
 
@@ -85,7 +88,8 @@ export const OPMLModal: React.FC<OPMLModalProps> = ({
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
     } catch (err: any) {
-      alert('Failed to copy OPML XML: ' + err?.message);
+      if (onNotify) onNotify('Failed to copy OPML XML: ' + err?.message, 'error');
+      else console.warn('Failed to copy OPML XML:', err);
     }
   };
 

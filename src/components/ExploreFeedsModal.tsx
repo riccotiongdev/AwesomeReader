@@ -15,6 +15,7 @@ interface ExploreFeedsModalProps {
   subscribedFeeds: Feed[];
   onSubscribeFeed: (feedUrl: string) => Promise<void>;
   onPreviewFeed: (feedUrl: string, feedTitle?: string) => void;
+  onNotify?: (message: string, type?: 'info' | 'error' | 'success') => void;
 }
 
 export const ExploreFeedsModal: React.FC<ExploreFeedsModalProps> = ({
@@ -23,6 +24,7 @@ export const ExploreFeedsModal: React.FC<ExploreFeedsModalProps> = ({
   subscribedFeeds,
   onSubscribeFeed,
   onPreviewFeed,
+  onNotify,
 }) => {
   const [searchQuery, setSearchQuery] = useState<string>('technology');
   const [activeCategory, setActiveCategory] = useState<string>('tech');
@@ -75,7 +77,8 @@ export const ExploreFeedsModal: React.FC<ExploreFeedsModalProps> = ({
     try {
       await onSubscribeFeed(feed.feedUrl);
     } catch (err: any) {
-      alert(`Failed to subscribe to ${feed.title}: ${err.message}`);
+      if (onNotify) onNotify(`Failed to subscribe to ${feed.title}: ${err.message}`, 'error');
+      else console.warn(`Failed to subscribe to ${feed.title}:`, err);
     } finally {
       setSubscribingUrl(null);
     }

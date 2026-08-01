@@ -11,6 +11,8 @@ import { OPMLModal } from '@/components/OPMLModal';
 import { CreateFolderModal } from '@/components/CreateFolderModal';
 import { ExploreFeedsModal } from '@/components/ExploreFeedsModal';
 import { FeedPreviewModal } from '@/components/FeedPreviewModal';
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { ToastContainer, ToastItem } from '@/components/ToastContainer';
 import { Folder, Feed, Article } from '@/types';
 import { clientDb } from '@/lib/db/dexie-db';
 import { fetchAndParseFeed } from '@/lib/services/feed-crawler';
@@ -50,6 +52,39 @@ export default function HomePage() {
   const [isSidebarMobileOpen, setIsSidebarMobileOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isPullRefreshing, setIsPullRefreshing] = useState(false);
+
+  // In-app confirm + toast (replaces window.confirm/alert, which don't work in native webviews)
+  const [confirmState, setConfirmState] = useState<{
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    danger?: boolean;
+    onConfirm: () => void;
+  } | null>(null);
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const toastIdRef = useRef(0);
+
+  const dismissToast = useCallback((id: number) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  const showToast = useCallback((message: string, type: ToastItem['type'] = 'info') => {
+    const id = ++toastIdRef.current;
+    setToasts((prev) => [...prev, { id, type, message }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 4000);
+  }, []);
+
+  const askConfirm = useCallback(
+    (
+      options: { title: string; message: string; confirmLabel?: string; danger?: boolean },
+      onConfirm: () => void
+    ) => {
+      setConfirmState({ ...options, onConfirm });
+    },
+    []
+  );
 
   // Modals
   const [isAddFeedOpen, setIsAddFeedOpen] = useState(false);
@@ -160,7 +195,7 @@ export default function HomePage() {
       await clientDb.createFolder(folderName);
       await loadFeedsAndFolders();
     } catch (err: any) {
-      alert(`Failed to create folder: ${err.message}`);
+      showToast(`Failed to create folder: ${err.message}`, 'error');
     } finally {
       setIsCreatingFolder(false);
     }
@@ -199,7 +234,7 @@ export default function HomePage() {
         await loadArticles();
       }
     } catch (err: any) {
-      alert(`Failed to subscribe to feed: ${err.message}`);
+      showToast(`Failed to subscribe to feed: ${err.message}`, 'error');
     } finally {
       setIsAddingFeed(false);
     }
@@ -212,38 +247,56 @@ export default function HomePage() {
       await loadFeedsAndFolders();
       await loadArticles();
     } catch (err: any) {
-      alert(`Failed to move feed: ${err.message}`);
+      showToast(`Failed to move feed: ${err.message}`, 'error');
     }
   };
 
   // Delete feed subscription and purge all stored content
   const handleDeleteFeed = async (feedId: string, feedTitle: string) => {
-    if (confirm(`Are you sure you want to delete subscription "${feedTitle}" and all stored content?`)) {
-      try {
-        await clientDb.deleteFeed(feedId);
-        if (selectedFeedId === feedId) {
-          setSelectedFeedId(null);
+    askConfirm(
+      {
+        title: 'Delete subscription',
+        message: `Are you sure you want to delete subscription "${feedTitle}" and all stored content?`,
+        confirmLabel: 'Delete',
+        danger: true,
+      },
+      async () => {
+        try {
+          await clientDb.deleteFeed(feedId);
+          if (selectedFeedId === feedId) {
+            setSelectedFeedId(null);
+          }
+          await loadFeedsAndFolders();
+          await loadArticles();
+          showToast(`Deleted "${feedTitle}"`, 'success');
+        } catch (err: any) {
+          showToast(`Failed to delete subscription: ${err.message}`, 'error');
         }
-        await loadFeedsAndFolders();
-        await loadArticles();
-      } catch (err: any) {
-        alert(`Failed to delete subscription: ${err.message}`);
       }
-    }
+    );
   };
 
   const handleDeleteFolder = async (folderId: string, folderName: string) => {
-    if (confirm(`Are you sure you want to delete folder "${folderName}"? (Feeds inside will be moved to root)`)) {
-      try {
-        await clientDb.deleteFolder(folderId);
-        if (selectedFolderId === folderId) {
-          setSelectedFolderId(null);
+    askConfirm(
+      {
+        title: 'Delete folder',
+        message: `Are you sure you want to delete folder "${folderName}"? (Feeds inside will be moved to root)`,
+        confirmLabel: 'Delete',
+        danger: true,
+      },
+      async () => {
+        try {
+          await clientDb.deleteFolder(folderId);
+          if (selectedFolderId === folderId) {
+            setSelectedFolderId(null);
+          }
+          await loadFeedsAndFolders();
+          showToast(`Deleted "${folderName}"`, 'success');
+        } catch (err: any) {
+          showToast(`Failed to delete folder: ${err.message}`, 'error');
         }
-        await loadFeedsAndFolders();
-      } catch (err: any) {
-        alert(`Failed to delete folder: ${err.message}`);
       }
-    }
+    );
   };
 
   // Initial Seed & Data Fetch
@@ -339,11 +392,11 @@ export default function HomePage() {
         }
       }
 
-      alert(`Successfully imported OPML! Imported ${importedCount} feeds.`);
+      showToast(`Successfully imported OPML! Imported ${importedCount} feeds.`, 'success');
       await loadFeedsAndFolders();
       await loadArticles();
     } catch (err: any) {
-      alert(`OPML import failed: ${err.message}`);
+      showToast(`OPML import failed: ${err.message}`, 'error');
     } finally {
       setIsImportingOpml(false);
     }
@@ -382,57 +435,73 @@ export default function HomePage() {
   };
 
   // Mark All Currently Filtered Articles as Read and auto-navigate to next feed with unreads
-  const handleMarkAllAsRead = async () => {
+  const handleMarkAllAsRead = () => {
     const unreadArticleIds = filteredArticles.filter((a) => !a.is_read).map((a) => a.id);
     if (unreadArticleIds.length === 0) return;
 
-    if (confirm(`Mark ${unreadArticleIds.length} article(s) in this view as read?`)) {
-      await clientDb.markArticlesAsRead(unreadArticleIds);
-      
-      // Refresh feeds/folders from DB to get updated unread counts
-      const updatedFeeds = await clientDb.getFeeds();
-      const updatedFolders = await clientDb.getFolders();
-      setFeeds(updatedFeeds);
-      setFolders(updatedFolders);
+    askConfirm(
+      {
+        title: 'Mark all as read',
+        message: `Mark ${unreadArticleIds.length} article(s) in this view as read?`,
+        confirmLabel: 'Mark as Read',
+      },
+      async () => {
+        await clientDb.markArticlesAsRead(unreadArticleIds);
 
-      // Find next feed with unread articles
-      let nextFeedId: string | null = null;
+        // Refresh feeds/folders from DB to get updated unread counts
+        const updatedFeeds = await clientDb.getFeeds();
+        const updatedFolders = await clientDb.getFolders();
+        setFeeds(updatedFeeds);
+        setFolders(updatedFolders);
 
-      if (selectedFeedId) {
-        const currentIndex = updatedFeeds.findIndex((f) => f.id === selectedFeedId);
-        // Look for the next feed after currentIndex that has unread_count > 0
-        const remainingFeeds = updatedFeeds.slice(currentIndex + 1);
-        const nextFeedWithUnread = remainingFeeds.find((f) => (f.unread_count || 0) > 0);
+        // Update the visible list immediately so cards no longer show as unread
+        setArticles((prev) =>
+          prev.map((a) =>
+            unreadArticleIds.includes(a.id) ? { ...a, is_read: true } : a
+          )
+        );
 
-        if (nextFeedWithUnread) {
-          nextFeedId = nextFeedWithUnread.id;
-        } else {
-          // If no next feed after current, check from start of list before current
-          const earlierFeeds = updatedFeeds.slice(0, currentIndex);
-          const earlierFeedWithUnread = earlierFeeds.find((f) => (f.unread_count || 0) > 0);
-          if (earlierFeedWithUnread) {
-            nextFeedId = earlierFeedWithUnread.id;
+        // Find next feed with unread articles
+        let nextFeedId: string | null = null;
+
+        if (selectedFeedId) {
+          const currentIndex = updatedFeeds.findIndex((f) => f.id === selectedFeedId);
+          // Look for the next feed after currentIndex that has unread_count > 0
+          const remainingFeeds = updatedFeeds.slice(currentIndex + 1);
+          const nextFeedWithUnread = remainingFeeds.find((f) => (f.unread_count || 0) > 0);
+
+          if (nextFeedWithUnread) {
+            nextFeedId = nextFeedWithUnread.id;
+          } else {
+            // If no next feed after current, check from start of list before current
+            const earlierFeeds = updatedFeeds.slice(0, currentIndex);
+            const earlierFeedWithUnread = earlierFeeds.find((f) => (f.unread_count || 0) > 0);
+            if (earlierFeedWithUnread) {
+              nextFeedId = earlierFeedWithUnread.id;
+            }
+          }
+        } else if (selectedFolderId) {
+          // If in a folder, check next feed with unread
+          const unreadFeed = updatedFeeds.find((f) => (f.unread_count || 0) > 0);
+          if (unreadFeed) {
+            nextFeedId = unreadFeed.id;
           }
         }
-      } else if (selectedFolderId) {
-        // If in a folder, check next feed with unread
-        const unreadFeed = updatedFeeds.find((f) => (f.unread_count || 0) > 0);
-        if (unreadFeed) {
-          nextFeedId = unreadFeed.id;
-        }
-      }
 
-      if (nextFeedId) {
-        // Switch to the next feed with unread articles
-        setSelectedFeedId(nextFeedId);
-        setSelectedFolderId(null);
-      } else {
-        // No more feeds with unread articles -> Go to All Subscriptions
-        setSelectedFeedId(null);
-        setSelectedFolderId(null);
-        await loadArticles();
+        if (nextFeedId) {
+          // Switch to the next feed with unread articles (selection change reloads the list)
+          setSelectedFeedId(nextFeedId);
+          setSelectedFolderId(null);
+        } else {
+          // No more feeds with unread articles -> Go to All Subscriptions
+          setSelectedFeedId(null);
+          setSelectedFolderId(null);
+          await loadArticles();
+        }
+
+        showToast(`Marked ${unreadArticleIds.length} article(s) as read`, 'success');
       }
-    }
+    );
   };
 
   // Open Article Reader
@@ -465,7 +534,7 @@ export default function HomePage() {
         );
       }
     } catch (err: any) {
-      alert(`Full text extraction failed: ${err.message}`);
+      showToast(`Full text extraction failed: ${err.message}`, 'error');
     } finally {
       setIsExtractingText(false);
     }
@@ -636,6 +705,7 @@ export default function HomePage() {
           setPreviewFeedUrl(feedUrl);
           setPreviewFeedTitle(feedTitle);
         }}
+        onNotify={showToast}
       />
 
       {/* Feed 5-Articles Preview Modal */}
@@ -648,6 +718,7 @@ export default function HomePage() {
           await handleAddFeed(feedUrl);
         }}
         isSubscribed={feeds.some((f) => f.feed_url.toLowerCase() === previewFeedUrl?.toLowerCase())}
+        onNotify={showToast}
       />
 
       {/* Add Feed Modal */}
@@ -673,7 +744,26 @@ export default function HomePage() {
         onClose={() => setIsOpmlOpen(false)}
         onImportOpml={handleImportOpml}
         isImporting={isImportingOpml}
+        onNotify={showToast}
       />
+
+      {/* In-app Confirm Dialog (replaces window.confirm, which is a no-op in native webviews) */}
+      <ConfirmDialog
+        isOpen={Boolean(confirmState)}
+        title={confirmState?.title || ''}
+        message={confirmState?.message || ''}
+        confirmLabel={confirmState?.confirmLabel}
+        danger={confirmState?.danger}
+        onCancel={() => setConfirmState(null)}
+        onConfirm={() => {
+          const action = confirmState?.onConfirm;
+          setConfirmState(null);
+          if (action) action();
+        }}
+      />
+
+      {/* Toast notifications (replaces window.alert) */}
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </div>
   );
 }

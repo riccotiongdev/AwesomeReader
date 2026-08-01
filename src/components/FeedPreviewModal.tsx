@@ -12,6 +12,7 @@ interface FeedPreviewModalProps {
   onClose: () => void;
   onSubscribe: (feedUrl: string) => Promise<void>;
   isSubscribed: boolean;
+  onNotify?: (message: string, type?: 'info' | 'error' | 'success') => void;
 }
 
 export const FeedPreviewModal: React.FC<FeedPreviewModalProps> = ({
@@ -21,6 +22,7 @@ export const FeedPreviewModal: React.FC<FeedPreviewModalProps> = ({
   onClose,
   onSubscribe,
   isSubscribed,
+  onNotify,
 }) => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -74,7 +76,8 @@ export const FeedPreviewModal: React.FC<FeedPreviewModalProps> = ({
       await onSubscribe(feedUrl);
       onClose();
     } catch (err: any) {
-      alert(`Failed to subscribe: ${err.message}`);
+      if (onNotify) onNotify(`Failed to subscribe: ${err.message}`, 'error');
+      else console.warn(`Failed to subscribe:`, err);
     } finally {
       setIsSubscribing(false);
     }
