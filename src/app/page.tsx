@@ -5,6 +5,7 @@ import { Header } from '@/components/Header';
 import { SidebarDrawer } from '@/components/SidebarDrawer';
 import { ArticleCard } from '@/components/ArticleCard';
 import { ArticleReaderModal } from '@/components/ArticleReaderModal';
+import { PullToRefresh } from '@/components/PullToRefresh';
 import { AddFeedModal } from '@/components/AddFeedModal';
 import { OPMLModal } from '@/components/OPMLModal';
 import { CreateFolderModal } from '@/components/CreateFolderModal';
@@ -13,6 +14,7 @@ import { FeedPreviewModal } from '@/components/FeedPreviewModal';
 import { Folder, Feed, Article } from '@/types';
 import { clientDb } from '@/lib/db/dexie-db';
 import { fetchAndParseFeed } from '@/lib/services/feed-crawler';
+import { refreshFeedsForView } from '@/lib/services/refresh';
 import { parseOPML } from '@/lib/services/opml';
 import { extractFullArticle } from '@/lib/services/readability';
 
@@ -47,6 +49,7 @@ export default function HomePage() {
   });
   const [isSidebarMobileOpen, setIsSidebarMobileOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isPullRefreshing, setIsPullRefreshing] = useState(false);
 
   // Modals
   const [isAddFeedOpen, setIsAddFeedOpen] = useState(false);
@@ -271,35 +274,46 @@ export default function HomePage() {
     loadArticles();
   }, [loadArticles]);
 
-  // Refresh feeds
+  // Unified scoped refresh: refreshes only the feeds in the current view
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    const currentFeeds = await clientDb.getFeeds();
+    try {
+      const currentFeeds = await clientDb.getFeeds();
 
-    for (const feed of currentFeeds) {
-      try {
-        const crawlResult = await fetchAndParseFeed(feed.feed_url, {
-          etag: feed.etag || undefined,
-          lastModified: feed.last_modified || undefined,
-        });
-        if (crawlResult.result) {
-          await clientDb.saveArticles(
-            crawlResult.result.articles.map((art) => ({
-              ...art,
-              published_at: art.publishedAt,
-              feed_id: feed.id,
-            }))
-          );
+      const outcomes = await refreshFeedsForView(
+        currentFeeds,
+        { selectedFeedId, selectedFolderId },
+        {
+          fetchFeed: fetchAndParseFeed,
+          saveArticles: (articles) => clientDb.saveArticles(articles),
+          updateFeedCrawlState: (feedId, state) => clientDb.updateFeedCrawlState(feedId, state),
+          now: () => new Date().toISOString(),
         }
-      } catch (err) {
-        console.warn(`Error refreshing feed ${feed.title}:`, err);
-      }
-    }
+      );
 
-    await loadFeedsAndFolders();
-    await loadArticles();
-    scrollToTop();
-    setIsRefreshing(false);
+      for (const outcome of outcomes) {
+        if (outcome.status === 'error') {
+          const feed = currentFeeds.find((f) => f.id === outcome.feedId);
+          console.warn(`Error refreshing feed ${feed?.title || outcome.feedId}:`, outcome.error);
+        }
+      }
+
+      await loadFeedsAndFolders();
+      await loadArticles();
+      scrollToTop();
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  // Pull-to-refresh triggers the same scoped refresh, flagged so the gesture indicator owns the visuals
+  const handlePullRefresh = async () => {
+    setIsPullRefreshing(true);
+    try {
+      await handleRefresh();
+    } finally {
+      setIsPullRefreshing(false);
+    }
   };
 
   // Import OPML file
@@ -532,6 +546,12 @@ export default function HomePage() {
         />
 
         <main className="timeline-area" ref={mainRef}>
+          <PullToRefresh
+            onRefresh={handlePullRefresh}
+            isRefreshing={isRefreshing}
+            isPullRefreshing={isPullRefreshing}
+            containerRef={mainRef}
+          />
           <div className="timeline-header">
             <h2>
               {decodeHtmlEntities(

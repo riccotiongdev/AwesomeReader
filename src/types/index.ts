@@ -73,5 +73,6 @@ export interface FeedFetchResult {
     publishedAt: string;
     summary?: string;
     content?: string;
+    image_url?: string | null;
   }>;
 }

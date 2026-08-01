@@ -1871,6 +1871,53 @@ body {
   border-top: 1px solid var(--border);
 }
 
+/* Pull-to-Refresh Indicator */
+.ptr-indicator {
+  position: fixed;
+  top: 54px;
+  left: 50%;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ptr-spinner {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.ptr-spinner svg {
+  transition: transform 0.15s ease;
+}
+
+.ptr-spinner.spinning svg {
+  animation: spin 0.9s linear infinite;
+}
+
+.ptr-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 4px 10px;
+  box-shadow: var(--shadow);
+  white-space: nowrap;
+}
+
 /* Floating Action Button - Mark All Read (Aligned Right at Bottom) */
 .fab-mark-all-read {
   position: fixed;

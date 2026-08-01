@@ -1,7 +1,7 @@
 import { XMLParser } from 'fast-xml-parser';
 import { FeedFetchResult } from '@/types';
 import { sanitizeArticleHtml } from './sanitizer';
-import { clientFetchText } from '../network/http-client';
+import { clientFetch } from '../network/http-client';
 
 export interface FetchFeedOptions {
   etag?: string;
@@ -65,7 +65,15 @@ export async function fetchAndParseFeed(
     headers['If-Modified-Since'] = options.lastModified;
   }
 
-  const rawXml = await clientFetchText(feedUrl, { headers });
+  const response = await clientFetch(feedUrl, { headers });
+
+  // Server replied 304 Not Modified -> nothing new to parse
+  if (response.status === 304) {
+    return { notModified: true };
+  }
+
+  const rawXml = response.text || '';
+  const responseHeaders = response.headers || {};
 
   const xmlParser = new XMLParser({
     ignoreAttributes: false,
@@ -119,6 +127,8 @@ export async function fetchAndParseFeed(
     result: {
       feedTitle: String(rawTitle).trim(),
       siteUrl: String(siteUrl),
+      etag: responseHeaders['etag'] || undefined,
+      lastModified: responseHeaders['last-modified'] || undefined,
       articles,
     },
   };

@@ -103,6 +103,20 @@ export class AwesomeReaderDB extends Dexie {
     });
   }
 
+  async updateFeedCrawlState(
+    feedId: string,
+    state: { etag?: string | null; last_modified?: string | null; last_fetched_at: string }
+  ): Promise<void> {
+    const updates: Partial<Feed> = { last_fetched_at: state.last_fetched_at };
+    if (state.etag !== undefined) {
+      updates.etag = state.etag;
+    }
+    if (state.last_modified !== undefined) {
+      updates.last_modified = state.last_modified;
+    }
+    await this.feeds.update(feedId, updates);
+  }
+
   // Article Helper Methods
   async saveArticles(
     articlesData: Array<Partial<Article> & { feed_id: string; guid: string; title: string; url: string; published_at: string; image_url?: string | null }>
