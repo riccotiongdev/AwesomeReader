@@ -22,10 +22,12 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
 }) => {
   const cardRef = useRef<HTMLElement | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(article.image_url || null);
+  const [imageError, setImageError] = useState(false);
   const hasAutoReadRef = useRef(false);
 
   useEffect(() => {
     setImageUrl(article.image_url || null);
+    setImageError(false);
 
     if (!article.image_url) {
       let isMounted = true;
@@ -92,7 +94,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
 
       {/* MIDDLE: Thumbnail Left + Details / Abstract Right */}
       <div className="card-middle-row">
-        {imageUrl && (
+        {imageUrl && !imageError && (
           <div className="card-left-thumbnail-wrapper animate-fade-in">
             <img
               src={imageUrl}
@@ -101,6 +103,7 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
               loading="lazy"
               onError={(e) => {
                 (e.target as HTMLElement).style.display = 'none';
+                setImageError(true);
               }}
             />
           </div>
