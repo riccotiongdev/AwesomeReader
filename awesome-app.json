@@ -5,7 +5,7 @@
   "icon": "public/icon.png",
   "build": {
     "install": "npm install",
-    "command": "npm run build",
+    "command": "npm run build:web",
     "output": "dist"
   },
   "entry": "index.html"
