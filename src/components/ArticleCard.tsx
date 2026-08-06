@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Article } from '@/types';
 import { fetchOgImageForArticle } from '@/lib/services/thumbnail-enricher';
+import { observeCard } from '@/lib/observers/card-observers';
 import { decodeHtmlEntities } from '@/lib/utils/html-decoder';
 
 interface ArticleCardProps {
@@ -24,55 +25,51 @@ export const ArticleCard: React.FC<ArticleCardProps> = ({
   const [imageUrl, setImageUrl] = useState<string | null>(article.image_url || null);
   const [imageError, setImageError] = useState(false);
   const hasAutoReadRef = useRef(false);
+  const enrichmentStartedRef = useRef(false);
 
   useEffect(() => {
     setImageUrl(article.image_url || null);
     setImageError(false);
+  }, [article.image_url]);
 
-    if (!article.image_url) {
+  // Mark as read when the card scrolls past the top of the viewport, and enrich
+  // missing thumbnails only when the card actually becomes visible. Both run through
+  // one shared IntersectionObserver, so a large list never spawns an observer per card.
+  useEffect(() => {
+    const el = cardRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return;
+
+    const startEnrichment = () => {
+      if (enrichmentStartedRef.current) return;
+      if (article.image_url || article.thumbnail_fetched) {
+        enrichmentStartedRef.current = true;
+        return;
+      }
+      enrichmentStartedRef.current = true;
       let isMounted = true;
       fetchOgImageForArticle(article).then((foundUrl) => {
         if (isMounted && foundUrl) {
           setImageUrl(foundUrl);
         }
       });
-      return () => {
-        isMounted = false;
-      };
-    }
-  }, [article]);
-
-  // Mark as read ONLY when the card scrolls past top of viewport and disappears
-  useEffect(() => {
-    if (article.is_read || hasAutoReadRef.current) return;
-
-    const el = cardRef.current;
-    if (!el || typeof IntersectionObserver === 'undefined') return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          // When card exits viewport and its bottom edge is above the top of screen (< 0),
-          // it has fully scrolled past the view and disappeared off top!
-          if (!entry.isIntersecting && entry.boundingClientRect.bottom < 0) {
-            if (!article.is_read && !hasAutoReadRef.current) {
-              hasAutoReadRef.current = true;
-              onToggleRead(article.id, false);
-            }
-          }
-        });
-      },
-      {
-        threshold: 0, // Trigger boundary check when card exits viewport
-      }
-    );
-
-    observer.observe(el);
-
-    return () => {
-      observer.disconnect();
     };
-  }, [article.id, article.is_read, onToggleRead]);
+
+    const unsubscribe = observeCard(el, (entry) => {
+      if (entry.isIntersecting) {
+        startEnrichment();
+      }
+      // When card exits viewport and its bottom edge is above the top of screen (< 0),
+      // it has fully scrolled past the view and disappeared off top!
+      if (!entry.isIntersecting && entry.boundingClientRect.bottom < 0) {
+        if (!article.is_read && !hasAutoReadRef.current) {
+          hasAutoReadRef.current = true;
+          onToggleRead(article.id, false);
+        }
+      }
+    });
+
+    return unsubscribe;
+  }, [article.id, article.is_read, article.image_url, article.thumbnail_fetched, onToggleRead]);
 
   const formattedDate = new Date(article.published_at).toLocaleDateString(undefined, {
     year: 'numeric',

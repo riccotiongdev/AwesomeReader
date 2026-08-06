@@ -121,7 +121,7 @@ class InMemoryDatabase {
     return list.sort((a, b) => new Date(b.published_at).getTime() - new Date(a.published_at).getTime());
   }
 
-  async updateArticleState(id: string, updates: { is_read?: boolean; is_starred?: boolean; full_content?: string }): Promise<Article | null> {
+  async updateArticleState(id: string, updates: { is_read?: boolean; is_starred?: boolean; full_content?: string; image_url?: string | null; thumbnail_fetched?: boolean }): Promise<Article | null> {
     for (const [key, article] of this.articles.entries()) {
       if (article.id === id) {
         const updated: Article = {
@@ -129,6 +129,9 @@ class InMemoryDatabase {
           is_read: updates.is_read !== undefined ? updates.is_read : article.is_read,
           is_starred: updates.is_starred !== undefined ? updates.is_starred : article.is_starred,
           full_content: updates.full_content !== undefined ? updates.full_content : article.full_content,
+          image_url: updates.image_url !== undefined ? updates.image_url : article.image_url,
+          thumbnail_fetched:
+            updates.thumbnail_fetched !== undefined ? updates.thumbnail_fetched : article.thumbnail_fetched,
           read_at: updates.is_read ? new Date().toISOString() : article.read_at,
           starred_at: updates.is_starred ? new Date().toISOString() : article.starred_at,
         };

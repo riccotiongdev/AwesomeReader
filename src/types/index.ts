@@ -35,6 +35,7 @@ export interface Article {
   content?: string | null;
   full_content?: string | null;
   image_url?: string | null;
+  thumbnail_fetched?: boolean;
   is_read: boolean;
   is_starred: boolean;
   read_at?: string | null;

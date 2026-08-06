@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Header } from '@/components/Header';
 import { SidebarDrawer } from '@/components/SidebarDrawer';
 import { ArticleCard } from '@/components/ArticleCard';
@@ -100,6 +100,10 @@ export default function HomePage() {
   const [activeArticle, setActiveArticle] = useState<Article | null>(null);
   const [isExtractingText, setIsExtractingText] = useState(false);
   const [viewUnreadIds, setViewUnreadIds] = useState<Set<string>>(new Set());
+  const [visibleCount, setVisibleCount] = useState(40);
+  const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
+  const visibleCountRef = useRef(visibleCount);
+  visibleCountRef.current = visibleCount;
 
   const scrollToTop = useCallback(() => {
     if (typeof window !== 'undefined') {
@@ -549,24 +553,58 @@ export default function HomePage() {
     scrollToTop();
   }, [activeTab, scrollToTop]);
 
-  // Filter Articles
-  const filteredArticles = articles.filter((article) => {
-    if (activeTab === 'unread') {
-      const wasUnreadOnLoad = viewUnreadIds.has(article.id);
-      if (article.is_read && !wasUnreadOnLoad) return false;
-    } else if (activeTab === 'starred') {
-      if (!article.is_starred) return false;
-    }
+  // Filter Articles (memoized) and index feed titles for O(1) lookup per card
+  const filteredArticles = useMemo(() => {
+    return articles.filter((article) => {
+      if (activeTab === 'unread') {
+        const wasUnreadOnLoad = viewUnreadIds.has(article.id);
+        if (article.is_read && !wasUnreadOnLoad) return false;
+      } else if (activeTab === 'starred') {
+        if (!article.is_starred) return false;
+      }
 
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      const titleMatch = article.title.toLowerCase().includes(q);
-      const summaryMatch = article.summary?.toLowerCase().includes(q);
-      return titleMatch || summaryMatch;
-    }
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const titleMatch = article.title.toLowerCase().includes(q);
+        const summaryMatch = article.summary?.toLowerCase().includes(q);
+        return titleMatch || summaryMatch;
+      }
 
-    return true;
-  });
+      return true;
+    });
+  }, [articles, activeTab, viewUnreadIds, searchQuery]);
+
+  const feedTitleById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const f of feeds) map.set(f.id, f.title);
+    return map;
+  }, [feeds]);
+
+  // Reset the rendering window whenever the filtered list, tab, or selection changes
+  useEffect(() => {
+    setVisibleCount(40);
+  }, [selectedFeedId, selectedFolderId, activeTab, searchQuery]);
+
+  // Incremental rendering: append a chunk when the sentinel scrolls into view
+  useEffect(() => {
+    const sentinel = loadMoreSentinelRef.current;
+    if (!sentinel || typeof IntersectionObserver === 'undefined') return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          const current = visibleCountRef.current;
+          if (current < filteredArticles.length) {
+            setVisibleCount(current + 100);
+          }
+        }
+      },
+      { root: null, rootMargin: '400px 0px 0px 0px' }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [filteredArticles.length]);
 
   const totalUnreadCount = feeds.reduce((sum, f) => sum + (f.unread_count || 0), 0);
 
@@ -651,19 +689,19 @@ export default function HomePage() {
             </div>
           ) : (
             <div className="articles-list animate-fade-in">
-              {filteredArticles.map((article) => {
-                const feed = feeds.find((f) => f.id === article.feed_id);
-                return (
-                  <ArticleCard
-                    key={article.id}
-                    article={article}
-                    feedTitle={feed?.title}
-                    onSelect={handleSelectArticle}
-                    onToggleStar={handleToggleStar}
-                    onToggleRead={handleToggleRead}
-                  />
-                );
-              })}
+              {filteredArticles.slice(0, visibleCount).map((article) => (
+                <ArticleCard
+                  key={article.id}
+                  article={article}
+                  feedTitle={feedTitleById.get(article.feed_id)}
+                  onSelect={handleSelectArticle}
+                  onToggleStar={handleToggleStar}
+                  onToggleRead={handleToggleRead}
+                />
+              ))}
+              {filteredArticles.length > visibleCount && (
+                <div ref={loadMoreSentinelRef} className="load-more-sentinel" aria-hidden="true" />
+              )}
             </div>
           )}
 
