@@ -14,6 +14,7 @@ const NavigationBar = registerPlugin<NavigationBarPluginInterface>('NavigationBa
 interface ArticleReaderModalProps {
   article: Article | null;
   feedTitle?: string;
+  theme: 'oled' | 'sepia' | 'light';
   onClose: () => void;
   onToggleStar: (articleId: string, currentStarred: boolean) => void;
   onExtractFullText: (articleId: string) => Promise<void>;
@@ -23,6 +24,7 @@ interface ArticleReaderModalProps {
 export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
   article,
   feedTitle = 'RSS Feed',
+  theme,
   onClose,
   onToggleStar,
   onExtractFullText,
@@ -44,59 +46,49 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
     }
     return 18;
   });
-  const [readerTheme, setReaderTheme] = useState<'oled' | 'sepia' | 'paper' | 'light'>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('awesomereader_reader_theme');
-      if (saved === 'oled' || saved === 'sepia' || saved === 'paper' || saved === 'light') return saved;
-    }
-    return 'oled';
-  });
+  const [typographyOpen, setTypographyOpen] = useState(false);
+  const typographyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     try {
       localStorage.setItem('awesomereader_reader_font', fontFamily);
       localStorage.setItem('awesomereader_reader_size', fontSize.toString());
-      localStorage.setItem('awesomereader_reader_theme', readerTheme);
     } catch (e) {
       console.warn('Failed to save reader preferences:', e);
     }
-  }, [fontFamily, fontSize, readerTheme]);
+  }, [fontFamily, fontSize]);
 
   // System bar color sync for Reader Modal Theme
+  useEffect(() => {
+    if (!typographyOpen) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (typographyRef.current && !typographyRef.current.contains(e.target as Node)) {
+        setTypographyOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [typographyOpen]);
+
   useEffect(() => {
     if (!article) return;
 
     const themeColors: Record<string, string> = {
       oled: '#000000',
       sepia: '#fbf0d9',
-      paper: '#f8f6f0',
       light: '#ffffff',
     };
-    const activeColor = themeColors[readerTheme] || '#000000';
-    const isLight = readerTheme === 'sepia' || readerTheme === 'paper' || readerTheme === 'light';
+    const activeColor = themeColors[theme] || '#000000';
+    const isLight = theme === 'sepia' || theme === 'light';
 
     if (Capacitor.isNativePlatform()) {
       StatusBar.setBackgroundColor({ color: activeColor }).catch(() => {});
       StatusBar.setStyle({ style: isLight ? Style.Light : Style.Dark }).catch(() => {});
       NavigationBar.setColor({ color: activeColor, darkButtons: isLight }).catch(() => {});
     }
-
-    return () => {
-      if (Capacitor.isNativePlatform()) {
-        const mainTheme = document.documentElement.getAttribute('data-theme') || 'oled';
-        const mainColors: Record<string, string> = {
-          oled: '#000000',
-          sepia: '#fbf0d9',
-          light: '#ffffff',
-        };
-        const mainIsLight = mainTheme === 'sepia' || mainTheme === 'light';
-        const mainColor = mainColors[mainTheme] || '#000000';
-        StatusBar.setBackgroundColor({ color: mainColor }).catch(() => {});
-        StatusBar.setStyle({ style: mainIsLight ? Style.Light : Style.Dark }).catch(() => {});
-        NavigationBar.setColor({ color: mainColor, darkButtons: mainIsLight }).catch(() => {});
-      }
-    };
-  }, [article, readerTheme]);
+  }, [article, theme]);
 
   useEffect(() => {
     let ticking = false;
@@ -132,7 +124,7 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
   const contentToDisplay = article.full_content || article.content || article.summary || '';
 
   return (
-    <div className="reader-modal-backdrop animate-fade-in" data-reader-theme={readerTheme}>
+    <div className="reader-modal-backdrop animate-fade-in" data-reader-theme={theme}>
       {/* Top Reading Progress Bar */}
       <div className="progress-bar-container">
         <div className="progress-bar" ref={progressBarRef} style={{ width: '0%' }} />
@@ -145,63 +137,55 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
         </button>
 
         <div className="reader-controls">
-          {/* Typography Controls */}
-          <div className="font-controls">
+          {/* Typography Menu */}
+          <div className="typography-menu" ref={typographyRef}>
             <button
-              className={`font-btn ${fontFamily === 'serif' ? 'active' : ''}`}
-              onClick={() => setFontFamily('serif')}
-              title="Serif font"
+              className={`icon-btn typography-btn ${typographyOpen ? 'active' : ''}`}
+              onClick={() => setTypographyOpen((o) => !o)}
+              title="Typography"
+              aria-expanded={typographyOpen}
+              aria-haspopup="true"
             >
-              Georgia
+              Aa
             </button>
-            <button
-              className={`font-btn ${fontFamily === 'sans' ? 'active' : ''}`}
-              onClick={() => setFontFamily('sans')}
-              title="Sans-serif font"
-            >
-              Sans
-            </button>
-            <button
-              className={`font-btn ${fontFamily === 'mono' ? 'active' : ''}`}
-              onClick={() => setFontFamily('mono')}
-              title="Monospace font"
-            >
-              Mono
-            </button>
-          </div>
 
-          <div className="size-controls">
-            <button className="size-btn" onClick={() => setFontSize(Math.max(14, fontSize - 2))}>
-              A-
-            </button>
-            <span className="size-val">{fontSize}px</span>
-            <button className="size-btn" onClick={() => setFontSize(Math.min(26, fontSize + 2))}>
-              A+
-            </button>
-          </div>
+            {typographyOpen && (
+              <div className="typography-popover">
+                <div className="font-controls">
+                  <button
+                    className={`font-btn ${fontFamily === 'serif' ? 'active' : ''}`}
+                    onClick={() => setFontFamily('serif')}
+                    title="Serif font"
+                  >
+                    Georgia
+                  </button>
+                  <button
+                    className={`font-btn ${fontFamily === 'sans' ? 'active' : ''}`}
+                    onClick={() => setFontFamily('sans')}
+                    title="Sans-serif font"
+                  >
+                    Sans
+                  </button>
+                  <button
+                    className={`font-btn ${fontFamily === 'mono' ? 'active' : ''}`}
+                    onClick={() => setFontFamily('mono')}
+                    title="Monospace font"
+                  >
+                    Mono
+                  </button>
+                </div>
 
-          {/* Theme Palette */}
-          <div className="theme-palette">
-            <button
-              className={`theme-dot oled ${readerTheme === 'oled' ? 'active' : ''}`}
-              onClick={() => setReaderTheme('oled')}
-              title="OLED Dark"
-            />
-            <button
-              className={`theme-dot sepia ${readerTheme === 'sepia' ? 'active' : ''}`}
-              onClick={() => setReaderTheme('sepia')}
-              title="Sepia Paper"
-            />
-            <button
-              className={`theme-dot paper ${readerTheme === 'paper' ? 'active' : ''}`}
-              onClick={() => setReaderTheme('paper')}
-              title="Warm Paper"
-            />
-            <button
-              className={`theme-dot light ${readerTheme === 'light' ? 'active' : ''}`}
-              onClick={() => setReaderTheme('light')}
-              title="Clean Light"
-            />
+                <div className="size-controls">
+                  <button className="size-btn" onClick={() => setFontSize(Math.max(14, fontSize - 2))}>
+                    A−
+                  </button>
+                  <span className="size-val">{fontSize}px</span>
+                  <button className="size-btn" onClick={() => setFontSize(Math.min(26, fontSize + 2))}>
+                    A+
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Star toggle */}

@@ -687,6 +687,7 @@ export default function HomePage() {
       <ArticleReaderModal
         article={activeArticle}
         feedTitle={feeds.find((f) => f.id === activeArticle?.feed_id)?.title}
+        theme={theme}
         onClose={() => setActiveArticle(null)}
         onToggleStar={handleToggleStar}
         onExtractFullText={handleExtractFullText}

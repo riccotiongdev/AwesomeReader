@@ -1002,6 +1002,9 @@ body {
   --link-color: #0a84ff;
   --border-color: #2c2c2e;
   --meta-color: #8e8e93;
+  --bg-secondary: #121212;
+  --text-primary: #f2f2f7;
+  --text-secondary: #a1a1a6;
 }
 
 [data-reader-theme="sepia"] {
@@ -1010,14 +1013,9 @@ body {
   --link-color: #8e5812;
   --border-color: #e2cca8;
   --meta-color: #7f6a4e;
-}
-
-[data-reader-theme="paper"] {
-  background-color: #f8f6f0;
-  color: #2c2c2e;
-  --link-color: #007aff;
-  --border-color: #e5e5ea;
-  --meta-color: #636366;
+  --bg-secondary: #f4e4c1;
+  --text-primary: #5f4b32;
+  --text-secondary: #7f6a4e;
 }
 
 [data-reader-theme="light"] {
@@ -1026,6 +1024,9 @@ body {
   --link-color: #007aff;
   --border-color: #e5e5ea;
   --meta-color: #636366;
+  --bg-secondary: #ffffff;
+  --text-primary: #1c1c1e;
+  --text-secondary: #636366;
 }
 
 .progress-bar-container {
@@ -1082,6 +1083,36 @@ body {
   padding: 2px;
 }
 
+.typography-menu {
+  position: relative;
+}
+
+.typography-btn {
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.typography-btn.active {
+  background: rgba(128, 128, 128, 0.3);
+  color: var(--text-primary);
+}
+
+.typography-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+}
+
 .font-btn {
   border: none;
   background: transparent;
@@ -1114,25 +1145,6 @@ body {
   padding: 0 4px;
   opacity: 0.8;
 }
-
-.theme-palette {
-  display: flex;
-  gap: 6px;
-}
-
-.theme-dot {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  border: 2px solid transparent;
-  cursor: pointer;
-}
-
-.theme-dot.oled { background: #000000; border-color: #333; }
-.theme-dot.sepia { background: #fbf0d9; }
-.theme-dot.paper { background: #f8f6f0; }
-.theme-dot.light { background: #ffffff; border-color: #ddd; }
-.theme-dot.active { border-color: var(--link-color); transform: scale(1.1); }
 
 .star-action-btn {
   border: none;
