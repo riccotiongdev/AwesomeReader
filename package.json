@@ -22,6 +22,7 @@
     "@mozilla/readability": "^0.5.0",
     "dexie": "^4.0.11",
     "fast-xml-parser": "^4.5.3",
+    "foliate-js": "^1.0.1",
     "linkedom": "^0.18.13",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -37,6 +38,7 @@
     "@types/sanitize-html": "^2.13.0",
     "@vitejs/plugin-react": "^4.3.4",
     "fake-indexeddb": "^6.2.5",
+    "jsdom": "^30.0.1",
     "typescript": "^5.7.3",
     "vite": "^5.4.14",
     "vitest": "^4.1.10"
