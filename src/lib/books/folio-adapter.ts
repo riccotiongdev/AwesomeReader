@@ -67,3 +67,103 @@ export async function extractBookInfo(file: File): Promise<BookInfo> {
     cover,
   };
 }
+
+// ===== Reader surface (ticket 04) =====
+
+export type ReaderTheme = 'oled' | 'sepia' | 'light';
+
+export interface TocItem {
+  label: string;
+  href: string | null;
+  subitems: TocItem[] | null;
+}
+
+/** Same three palettes as the app's themes, for the book viewport. */
+export const READER_THEME_CSS: Record<ReaderTheme, string> = {
+  oled: 'body { background: #000 !important; color: #c9c9c9 !important; }',
+  sepia: 'body { background: #f4ecd8 !important; color: #433422 !important; }',
+  light: 'body { background: #fff !important; color: #1a1a1a !important; }',
+};
+
+/** CSS injected into the book viewport: theme + font size. */
+export function buildReaderCss(theme: ReaderTheme, fontSizePct: number): string {
+  return (
+    READER_THEME_CSS[theme] +
+    ` p, h1, h2, h3, h4, li, blockquote { font-size: ${fontSizePct}% !important; }`
+  );
+}
+
+/** Maps foliate-js nav items to our stable TocItem shape. */
+export function tocToItems(toc: any[] | undefined | null): TocItem[] {
+  if (!toc) return [];
+  return toc.map((item) => ({
+    label: item.label ?? '',
+    href: item.href ?? null,
+    subitems: item.subitems ? tocToItems(item.subitems) : null,
+  }));
+}
+
+/**
+ * An open reading session: a mounted <foliate-view> rendering one book.
+ * Owns all foliate-js interaction for the reader (ADR-0002). Created with
+ * open(), torn down with close(). Ticket 05 adds location save/restore here.
+ */
+export class ReaderSession {
+  private view: any = null;
+  private element: HTMLElement | null = null;
+
+  private constructor(private container: HTMLElement) {}
+
+  static async open(container: HTMLElement, file: File | Blob): Promise<ReaderSession> {
+    await import('foliate-js/view.js');
+    const session = new ReaderSession(container);
+    const view = document.createElement('foliate-view');
+    view.style.cssText = 'display:block;width:100%;height:100%;';
+    container.append(view);
+    session.view = view as any;
+    session.element = view;
+    try {
+      await session.view.open(file);
+      await session.view.init({});
+    } catch (err) {
+      session.close();
+      throw err;
+    }
+    return session;
+  }
+
+  get toc(): TocItem[] {
+    return tocToItems(this.view?.book?.toc);
+  }
+
+  get title(): string {
+    return this.view?.book?.metadata?.title ?? '';
+  }
+
+  async setStyles(css: string): Promise<void> {
+    await this.view?.renderer?.setStyles(css);
+  }
+
+  async goTo(target: string): Promise<void> {
+    await this.view?.goTo(target);
+  }
+
+  async next(): Promise<void> {
+    await this.view?.next();
+  }
+
+  async prev(): Promise<void> {
+    await this.view?.prev();
+  }
+
+  close(): void {
+    try {
+      this.view?.close?.();
+    } catch {
+      // engine teardown failure must not mask anything
+    }
+    this.element?.remove();
+    this.element = null;
+    this.view = null;
+  }
+}

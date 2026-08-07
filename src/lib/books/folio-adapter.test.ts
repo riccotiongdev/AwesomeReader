@@ -7,7 +7,14 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { extractBookInfo, InvalidBookError } from './folio-adapter';
+import { makeBook } from 'foliate-js/view.js';
+import {
+  extractBookInfo,
+  InvalidBookError,
+  buildReaderCss,
+  READER_THEME_CSS,
+  tocToItems,
+} from './folio-adapter';
 
 const fixtureFile = () =>
   new File(
@@ -47,5 +54,32 @@ describe('extractBookInfo (ticket 03)', () => {
       type: 'application/epub+zip',
     });
     await expect(extractBookInfo(corrupt)).rejects.toBeInstanceOf(InvalidBookError);
+  });
+});
+
+describe('reader surface (ticket 04)', () => {
+  it('maps the fixture nav into TOC items with labels and hrefs', async () => {
+    const book = await makeBook(fixtureFile());
+    const items = tocToItems(book.toc);
+    expect(items.map((i) => i.label)).toEqual(['Chapter 1', 'Chapter 2', 'Chapter 3']);
+    expect(items[0].href).toMatch(/ch1\.xhtml/);
+    expect(items[0].subitems).toBeNull();
+  });
+
+  it('handles missing TOC gracefully', () => {
+    expect(tocToItems(null)).toEqual([]);
+    expect(tocToItems(undefined)).toEqual([]);
+  });
+
+  it('builds theme CSS for all three palettes', () => {
+    expect(READER_THEME_CSS.oled).toContain('#000');
+    expect(READER_THEME_CSS.sepia).toContain('#f4ecd8');
+    expect(READER_THEME_CSS.light).toContain('#fff');
+  });
+
+  it('bakes the font size into the injected CSS', () => {
+    const css = buildReaderCss('sepia', 130);
+    expect(css).toContain('#f4ecd8');
+    expect(css).toContain('font-size: 130%');
   });
 });

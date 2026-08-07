@@ -5,6 +5,7 @@ import { Space } from '@/lib/space/space-mode';
 import { SpaceSwitcher } from '@/components/SpaceSwitcher';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { ToastContainer, ToastItem } from '@/components/ToastContainer';
+import { BookReader } from '@/components/BookReader';
 import { Book } from '@/types';
 import { clientDb } from '@/lib/db/dexie-db';
 import { extractBookInfo, InvalidBookError, BookInfo } from '@/lib/books/folio-adapter';
@@ -22,6 +23,7 @@ interface BooksSpaceProps {
 export const BooksSpace: React.FC<BooksSpaceProps> = ({ space, onSpaceChange }) => {
   const [books, setBooks] = useState<Book[]>([]);
   const [isImporting, setIsImporting] = useState(false);
+  const [readingBook, setReadingBook] = useState<Book | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<Book | null>(null);
   const [pendingReplace, setPendingReplace] = useState<{ file: File; info: BookInfo } | null>(null);
 
@@ -129,6 +131,8 @@ export const BooksSpace: React.FC<BooksSpaceProps> = ({ space, onSpaceChange }) 
     [loadBooks, revokeCoverUrl, showToast]
   );
 
+  const closeReader = useCallback(() => setReadingBook(null), []);
+
   return (
     <div className="books-layout">
       <header className="header books-header">
@@ -171,21 +175,26 @@ export const BooksSpace: React.FC<BooksSpaceProps> = ({ space, onSpaceChange }) 
                   <button
                     className="book-delete-btn"
                     title={`Delete ${book.title}`}
-                    onClick={() => setConfirmDelete(book)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setConfirmDelete(book);
+                    }}
                   >
                     ✕
                   </button>
-                  <div className="book-cover">
-                    {coverUrl ? (
-                      <img src={coverUrl} alt={`${book.title} cover`} loading="lazy" />
-                    ) : (
-                      <span className="book-cover-placeholder">📖</span>
-                    )}
-                  </div>
-                  <div className="book-title" title={book.title}>
-                    {book.title}
-                  </div>
-                  <div className="book-author">{book.author ?? 'Unknown author'}</div>
+                  <button className="book-card-main" onClick={() => setReadingBook(book)}>
+                    <div className="book-cover">
+                      {coverUrl ? (
+                        <img src={coverUrl} alt={`${book.title} cover`} loading="lazy" />
+                      ) : (
+                        <span className="book-cover-placeholder">📖</span>
+                      )}
+                    </div>
+                    <div className="book-title" title={book.title}>
+                      {book.title}
+                    </div>
+                    <div className="book-author">{book.author ?? 'Unknown author'}</div>
+                  </button>
                 </div>
               );
             })}
@@ -230,6 +239,8 @@ export const BooksSpace: React.FC<BooksSpaceProps> = ({ space, onSpaceChange }) 
       />
 
       <ToastContainer toasts={toasts} onDismiss={dismissToast} />
+
+      {readingBook && <BookReader book={readingBook} onClose={closeReader} />}
     </div>
   );
 };
