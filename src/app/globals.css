@@ -368,6 +368,9 @@ body {
   border-right: 1px solid var(--border);
   padding: 1rem 0.75rem;
   overflow-y: auto;
+  /* Stop wheel/touch scroll on the sidebar (incl. blank space) from chaining
+     up and scrolling the article list behind it. */
+  overscroll-behavior: contain;
   position: sticky;
   top: 60px;
   flex-shrink: 0;
@@ -483,13 +486,6 @@ body {
   flex-direction: column;
   gap: 0.35rem;
   flex-shrink: 0;
-}
-
-.theme-label {
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: var(--text-muted);
-  letter-spacing: 0.05em;
 }
 
 .theme-toggle-group {
@@ -1474,6 +1470,25 @@ body {
   font-size: 0.85rem;
   cursor: pointer;
   width: 100%;
+}
+
+.btn-danger {
+  background: rgba(255, 69, 58, 0.12);
+  color: #ff453a;
+  border: 1px solid rgba(255, 69, 58, 0.3);
+  padding: 9px 18px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  width: 100%;
+  transition: all 0.15s ease;
+}
+
+.btn-danger:hover {
+  background: #ff453a;
+  color: white;
+  border-color: #ff453a;
 }
 
 /* Animations */

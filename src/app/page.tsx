@@ -7,6 +7,7 @@ import { ArticleCard } from '@/components/ArticleCard';
 import { ArticleReaderModal } from '@/components/ArticleReaderModal';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { AddFeedModal } from '@/components/AddFeedModal';
+import { SettingsModal } from '@/components/SettingsModal';
 import { OPMLModal } from '@/components/OPMLModal';
 import { CreateFolderModal } from '@/components/CreateFolderModal';
 import { ExploreFeedsModal } from '@/components/ExploreFeedsModal';
@@ -86,10 +87,38 @@ export default function HomePage() {
     []
   );
 
+  // Settings > Clear Cached Articles: confirm, wipe article cache, then reload fresh.
+  const handleClearCachedArticles = () => {
+    askConfirm(
+      {
+        title: 'Clear cached articles?',
+        message:
+          'This deletes cached articles from this device. Your folders, subscriptions, and starred ' +
+          'articles are kept — new articles will appear after the next refresh. Read state resets. ' +
+          'This cannot be undone.',
+        confirmLabel: 'Clear Articles',
+        danger: true,
+      },
+      async () => {
+        try {
+          await clientDb.clearCachedArticles();
+          // Rebuild in-memory state from the DB so the cleared list shows
+          // immediately — no page reload (which can be flaky in webviews).
+          await loadFeedsAndFolders();
+          await loadArticles();
+          showToast('Cached articles cleared', 'success');
+        } catch (err: any) {
+          showToast(`Failed to clear articles: ${err?.message || err}`, 'error');
+        }
+      }
+    );
+  };
+
   // Modals
   const [isAddFeedOpen, setIsAddFeedOpen] = useState(false);
   const [isExploreOpen, setIsExploreOpen] = useState(false);
   const [isOpmlOpen, setIsOpmlOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false);
   const [isAddingFeed, setIsAddingFeed] = useState(false);
   const [isImportingOpml, setIsImportingOpml] = useState(false);
@@ -133,6 +162,8 @@ export default function HomePage() {
         setIsAddFeedOpen(false);
       } else if (isOpmlOpen) {
         setIsOpmlOpen(false);
+      } else if (isSettingsOpen) {
+        setIsSettingsOpen(false);
       } else if (isSidebarMobileOpen) {
         setIsSidebarMobileOpen(false);
       } else {
@@ -143,7 +174,7 @@ export default function HomePage() {
     return () => {
       handleBackButton.then((h) => h.remove());
     };
-  }, [activeArticle, isCreateFolderOpen, isAddFeedOpen, isOpmlOpen, isSidebarMobileOpen]);
+  }, [activeArticle, isCreateFolderOpen, isAddFeedOpen, isOpmlOpen, isSettingsOpen, isSidebarMobileOpen]);
 
   // Theme Sync & Persistence
   useEffect(() => {
@@ -671,13 +702,11 @@ export default function HomePage() {
           }}
           onOpenAddFeed={() => setIsAddFeedOpen(true)}
           onOpenExplore={() => setIsExploreOpen(true)}
-          onOpenOpml={() => setIsOpmlOpen(true)}
           onOpenCreateFolder={() => setIsCreateFolderOpen(true)}
           onMoveFeedToFolder={handleMoveFeedToFolder}
           onDeleteFeed={handleDeleteFeed}
           onDeleteFolder={handleDeleteFolder}
-          theme={theme}
-          setTheme={(t) => setTheme(t as any)}
+          onOpenSettings={() => setIsSettingsOpen(true)}
           isOpenMobile={isSidebarMobileOpen}
           onCloseMobile={() => setIsSidebarMobileOpen(false)}
           totalUnreadCount={totalUnreadCount}
@@ -815,6 +844,19 @@ export default function HomePage() {
         onImportOpml={handleImportOpml}
         isImporting={isImportingOpml}
         onNotify={showToast}
+      />
+
+      {/* Settings Modal */}
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        theme={theme}
+        setTheme={setTheme}
+        onOpenOpml={() => {
+          setIsSettingsOpen(false);
+          setIsOpmlOpen(true);
+        }}
+        onClearCachedArticles={handleClearCachedArticles}
       />
 
       {/* In-app Confirm Dialog (replaces window.confirm, which is a no-op in native webviews) */}

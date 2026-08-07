@@ -221,6 +221,23 @@ export class AwesomeReaderDB extends Dexie {
       }
     });
   }
+
+  /**
+   * Clear the cached articles from the local database. Folders, subscriptions
+   * (feeds), and starred articles are kept; unstarred articles are removed so
+   * new ones reappear on the next refresh. Read state resets with the cache.
+   *
+   * NOTE: is_read / is_starred are boolean columns. IndexedDB does not support
+   * boolean keys, so Dexie silently leaves boolean columns unindexed — an
+   * indexed query like where('is_starred').equals(0) matches nothing. Filter in
+   * memory instead, then bulk-delete by primary key.
+   */
+  async clearCachedArticles(): Promise<void> {
+    const unstarredIds = await this.articles.filter((a) => !a.is_starred).primaryKeys();
+    if (unstarredIds.length > 0) {
+      await this.articles.bulkDelete(unstarredIds);
+    }
+  }
 }
 
 export const clientDb = new AwesomeReaderDB();

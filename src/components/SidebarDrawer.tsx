@@ -14,13 +14,11 @@ interface SidebarDrawerProps {
   onSelectFeed: (feedId: string) => void;
   onOpenAddFeed: () => void;
   onOpenExplore: () => void;
-  onOpenOpml: () => void;
   onOpenCreateFolder: () => void;
   onMoveFeedToFolder: (feedId: string, folderId: string | null) => Promise<void>;
   onDeleteFeed: (feedId: string, feedTitle: string) => Promise<void>;
   onDeleteFolder: (folderId: string, folderName: string) => Promise<void>;
-  theme: string;
-  setTheme: (theme: string) => void;
+  onOpenSettings: () => void;
   isOpenMobile: boolean;
   onCloseMobile: () => void;
   totalUnreadCount: number;
@@ -36,13 +34,11 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
   onSelectFeed,
   onOpenAddFeed,
   onOpenExplore,
-  onOpenOpml,
   onOpenCreateFolder,
   onMoveFeedToFolder,
   onDeleteFeed,
   onDeleteFolder,
-  theme,
-  setTheme,
+  onOpenSettings,
   isOpenMobile,
   onCloseMobile,
   totalUnreadCount,
@@ -50,12 +46,13 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
   const [activeMenuFeedId, setActiveMenuFeedId] = useState<string | null>(null);
   const [activeMenuFolderId, setActiveMenuFolderId] = useState<string | null>(null);
   const [draggedOverFolderId, setDraggedOverFolderId] = useState<string | null | '__ROOT__'>(null);
-  const [collapsedFolderIds, setCollapsedFolderIds] = useState<Set<string>>(new Set());
+  const [expandedFolderIds, setExpandedFolderIds] = useState<Set<string>>(new Set());
   const isAllSelected = !selectedFolderId && !selectedFeedId;
 
-  const toggleFolderCollapse = (folderId: string, e?: React.MouseEvent) => {
+  // Folders start collapsed; tapping a folder (or its arrow) expands it.
+  const toggleFolderExpand = (folderId: string, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
-    setCollapsedFolderIds((prev) => {
+    setExpandedFolderIds((prev) => {
       const next = new Set(prev);
       if (next.has(folderId)) {
         next.delete(folderId);
@@ -148,17 +145,6 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
               <span className="nav-icon">🧭</span>
               <span className="nav-label">Explore Directory</span>
             </button>
-
-            <button
-              className="nav-item action-nav-item"
-              onClick={() => {
-                onOpenOpml();
-                onCloseMobile();
-              }}
-            >
-              <span className="nav-icon">📥</span>
-              <span className="nav-label">Import / Export OPML</span>
-            </button>
           </div>
 
           <div className="sidebar-section-divider" />
@@ -185,7 +171,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
             );
             const isTargetedByDrag = draggedOverFolderId === folder.id;
             const isFolderMenuOpen = activeMenuFolderId === folder.id;
-            const isExpanded = !collapsedFolderIds.has(folder.id);
+            const isExpanded = expandedFolderIds.has(folder.id);
 
             return (
               <div key={folder.id} className="folder-group">
@@ -195,8 +181,8 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
                       isTargetedByDrag ? 'drag-over' : ''
                     }`}
                     onClick={() => {
-                      if (collapsedFolderIds.has(folder.id)) {
-                        toggleFolderCollapse(folder.id);
+                      if (!expandedFolderIds.has(folder.id)) {
+                        toggleFolderExpand(folder.id);
                       }
                       onSelectFolder(folder.id);
                       onCloseMobile();
@@ -208,7 +194,7 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
                   >
                     <span
                       className="folder-toggle-arrow"
-                      onClick={(e) => toggleFolderCollapse(folder.id, e)}
+                      onClick={(e) => toggleFolderExpand(folder.id, e)}
                       title={isExpanded ? 'Collapse folder' : 'Expand folder'}
                     >
                       {isExpanded ? '▾' : '▸'}
@@ -401,32 +387,16 @@ export const SidebarDrawer: React.FC<SidebarDrawerProps> = ({
           </div>
         </nav>
 
-        {/* Sidebar Footer: Theme Toggle Controls */}
+        {/* Sidebar Footer: Settings */}
         <div className="sidebar-footer">
-          <span className="theme-label">THEME</span>
-          <div className="theme-toggle-group">
-            <button
-              className={`theme-chip ${theme === 'oled' ? 'active' : ''}`}
-              onClick={() => setTheme('oled')}
-              title="OLED Dark Theme"
-            >
-              🌙 OLED
-            </button>
-            <button
-              className={`theme-chip ${theme === 'sepia' ? 'active' : ''}`}
-              onClick={() => setTheme('sepia')}
-              title="Sepia Paper Theme"
-            >
-              📜 Sepia
-            </button>
-            <button
-              className={`theme-chip ${theme === 'light' ? 'active' : ''}`}
-              onClick={() => setTheme('light')}
-              title="Light Theme"
-            >
-              ☀️ Light
-            </button>
-          </div>
+          <button
+            className="nav-item action-nav-item"
+            onClick={onOpenSettings}
+            title="Settings"
+          >
+            <span className="nav-icon">⚙️</span>
+            <span className="nav-label">Settings</span>
+          </button>
         </div>
       </aside>
     </>
