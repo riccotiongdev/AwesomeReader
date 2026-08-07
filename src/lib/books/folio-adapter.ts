@@ -78,6 +78,34 @@ export interface TocItem {
   subitems: TocItem[] | null;
 }
 
+/** Serializable reading position (ticket 05). */
+export interface BookLocation {
+  cfi: string | null;
+  fraction: number | null;
+}
+
+/**
+ * Extracts the persistable subset of a foliate-js relocate detail. The raw
+ * detail also carries a DOM Range and section/time bookkeeping that is not
+ * JSON-serializable (and not needed across sessions).
+ */
+export function locationToSerializable(detail: any): BookLocation {
+  return {
+    cfi: typeof detail?.cfi === 'string' ? detail.cfi : null,
+    fraction: typeof detail?.fraction === 'number' ? detail.fraction : null,
+  };
+}
+
+/**
+ * The target to hand foliate-js for resuming: the exact CFI when we have one,
+ * else the approximate fraction, else undefined (start from the top).
+ */
+export function resolveInitialLocation(saved: BookLocation | null | undefined): any {
+  if (saved?.cfi) return saved.cfi;
+  if (saved?.fraction != null) return { fraction: saved.fraction };
+  return undefined;
+}
+
 /** Same three palettes as the app's themes, for the book viewport. */
 export const READER_THEME_CSS: Record<ReaderTheme, string> = {
   oled: 'body { background: #000 !important; color: #c9c9c9 !important; }',
@@ -111,10 +139,17 @@ export function tocToItems(toc: any[] | undefined | null): TocItem[] {
 export class ReaderSession {
   private view: any = null;
   private element: HTMLElement | null = null;
+  private location: BookLocation | null = null;
+  /** Called on every relocate (page turn / TOC jump) with the serializable position. */
+  onRelocate: ((location: BookLocation) => void) | null = null;
 
   private constructor(private container: HTMLElement) {}
 
-  static async open(container: HTMLElement, file: File | Blob): Promise<ReaderSession> {
+  static async open(
+    container: HTMLElement,
+    file: File | Blob,
+    initialLocation?: BookLocation | null
+  ): Promise<ReaderSession> {
     await import('foliate-js/view.js');
     const session = new ReaderSession(container);
     const view = document.createElement('foliate-view');
@@ -122,9 +157,13 @@ export class ReaderSession {
     container.append(view);
     session.view = view as any;
     session.element = view;
+    (view as any).addEventListener('relocate', (e: { detail: any }) => {
+      session.location = locationToSerializable(e.detail);
+      session.onRelocate?.(session.location);
+    });
     try {
       await session.view.open(file);
-      await session.view.init({});
+      await session.view.init({ lastLocation: resolveInitialLocation(initialLocation) });
     } catch (err) {
       session.close();
       throw err;
@@ -138,6 +177,11 @@ export class ReaderSession {
 
   get title(): string {
     return this.view?.book?.metadata?.title ?? '';
+  }
+
+  /** The most recent reading position, or null before the first relocate. */
+  get currentLocation(): BookLocation | null {
+    return this.location;
   }
 
   async setStyles(css: string): Promise<void> {

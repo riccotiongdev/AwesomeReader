@@ -131,7 +131,10 @@ export const BooksSpace: React.FC<BooksSpaceProps> = ({ space, onSpaceChange }) 
     [loadBooks, revokeCoverUrl, showToast]
   );
 
-  const closeReader = useCallback(() => setReadingBook(null), []);
+  const closeReader = useCallback(() => {
+    setReadingBook(null);
+    loadBooks(); // shelf progress updates after reading (ticket 05)
+  }, [loadBooks]);
 
   return (
     <div className="books-layout">
@@ -194,6 +197,19 @@ export const BooksSpace: React.FC<BooksSpaceProps> = ({ space, onSpaceChange }) 
                       {book.title}
                     </div>
                     <div className="book-author">{book.author ?? 'Unknown author'}</div>
+                    {book.progress != null && (
+                      <div className="book-progress" aria-label={`${Math.round(book.progress * 100)}% read`}>
+                        <div className="book-progress-track">
+                          <div
+                            className={`book-progress-fill ${book.progress >= 1 ? 'complete' : ''}`}
+                            style={{ width: `${Math.min(100, Math.round(book.progress * 100))}%` }}
+                          />
+                        </div>
+                        <span className="book-progress-label">
+                          {book.progress >= 1 ? 'Finished' : `${Math.round(book.progress * 100)}%`}
+                        </span>
+                      </div>
+                    )}
                   </button>
                 </div>
               );

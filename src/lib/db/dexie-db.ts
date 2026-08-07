@@ -76,6 +76,28 @@ export class AwesomeReaderDB extends Dexie {
     );
   }
 
+  /** Reading progress (ticket 05): location token + 0..1 fraction. */
+  async updateBookProgress(
+    id: string,
+    updates: { location?: string | null; progress?: number | null }
+  ): Promise<Book | null> {
+    const book = await this.books.get(id);
+    if (!book) return null;
+    const updated: Book = {
+      ...book,
+      location: updates.location !== undefined ? updates.location : book.location,
+      progress: updates.progress !== undefined ? updates.progress : book.progress,
+    };
+    await this.books.put(updated);
+    return updated;
+  }
+
+  async getBookProgress(id: string): Promise<{ location: string | null; progress: number | null } | null> {
+    const book = await this.books.get(id);
+    if (!book) return null;
+    return { location: book.location, progress: book.progress };
+  }
+
   async getFolders(): Promise<Folder[]> {
     const folderList = await this.folders.orderBy('sort_order').toArray();
     const allArticles = await this.articles.toArray();

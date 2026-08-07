@@ -64,4 +64,36 @@ describe('books table (ticket 03)', () => {
     expect(await db.getBooks()).toHaveLength(0);
     expect(await db.getBookBlob(book.id)).toBeNull();
   });
+
+  it('updates and reads back reading progress', async () => {
+    const book = await db.addBook({ blob: blob(1), title: 'Progress', author: null });
+    expect(await db.getBookProgress(book.id)).toEqual({ location: null, progress: null });
+
+    await db.updateBookProgress(book.id, { location: 'epubcfi(/6/4)', progress: 0.42 });
+    expect(await db.getBookProgress(book.id)).toEqual({
+      location: 'epubcfi(/6/4)',
+      progress: 0.42,
+    });
+  });
+
+  it('partial progress updates do not clobber the other field', async () => {
+    const book = await db.addBook({ blob: blob(1), title: 'Partial', author: null });
+    await db.updateBookProgress(book.id, { location: 'epubcfi(/6/4)' });
+    await db.updateBookProgress(book.id, { progress: 0.9 });
+    expect(await db.getBookProgress(book.id)).toEqual({
+      location: 'epubcfi(/6/4)',
+      progress: 0.9,
+    });
+  });
+
+  it('marks a finished book complete (progress 1, location cleared)', async () => {
+    const book = await db.addBook({ blob: blob(1), title: 'Finished', author: null });
+    await db.updateBookProgress(book.id, { location: 'epubcfi(/6/9)', progress: 0.7 });
+    await db.updateBookProgress(book.id, { location: null, progress: 1 });
+    expect(await db.getBookProgress(book.id)).toEqual({ location: null, progress: 1 });
+  });
+
+  it('returns null progress for an unknown book', async () => {
+    expect(await db.getBookProgress('nope')).toBeNull();
+  });
 });

@@ -6,6 +6,7 @@ import { Book } from '@/types';
 import { clientDb } from '@/lib/db/dexie-db';
 import {
   buildReaderCss,
+  BookLocation,
   ReaderSession,
   ReaderTheme,
   TocItem,
@@ -24,6 +25,10 @@ interface BookReaderProps {
 }
 
 const THEME_ORDER: ReaderTheme[] = ['oled', 'sepia', 'light'];
+
+/** Fraction at/above which the book counts as finished (ticket 05). */
+const COMPLETE_THRESHOLD = 0.999;
+const SAVE_DEBOUNCE_MS = 600;
 
 /**
  * The dedicated full-screen book reader (ticket 04). Renders the book through
@@ -44,12 +49,45 @@ export const BookReader: React.FC<BookReaderProps> = ({ book, onClose }) => {
   const [fontPct, setFontPct] = useState<number>(fontRef.current);
   const [error, setError] = useState<string | null>(null);
 
+  // Progress save/resume (ticket 05): latest position + pending debounce.
+  const lastLocationRef = useRef<BookLocation | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const flushProgress = useCallback(async () => {
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    const loc = lastLocationRef.current;
+    if (!loc || !loc.cfi) return;
+    const finished = loc.fraction != null && loc.fraction >= COMPLETE_THRESHOLD;
+    await clientDb
+      .updateBookProgress(book.id, {
+        // A finished book restarts from the top next open (location = null).
+        location: finished ? null : loc.cfi,
+        progress: finished ? 1 : loc.fraction,
+      })
+      .catch(() => {});
+  }, [book.id]);
+
+  const scheduleProgressSave = useCallback(
+    (loc: BookLocation) => {
+      lastLocationRef.current = loc;
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(() => {
+        saveTimerRef.current = null;
+        flushProgress();
+      }, SAVE_DEBOUNCE_MS);
+    },
+    [flushProgress]
+  );
+
   const applyStyles = useCallback((session: ReaderSession | null) => {
     session?.setStyles(buildReaderCss(themeRef.current, fontRef.current)).catch(() => {});
   }, []);
 
   // Open the book when the reader mounts or the book changes; tear down on
-  // unmount/book-switch so no stale session leaks.
+  // unmount/book-switch so no stale session leaks. Resumes from saved progress.
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -61,12 +99,18 @@ export const BookReader: React.FC<BookReaderProps> = ({ book, onClose }) => {
       }
       const file = new File([blob], `${book.title}.epub`, { type: 'application/epub+zip' });
       try {
-        const session = await ReaderSession.open(containerRef.current!, file);
+        const savedProgress = await clientDb.getBookProgress(book.id);
+        if (cancelled) return;
+        const saved: BookLocation | null = savedProgress
+          ? { cfi: savedProgress.location, fraction: savedProgress.progress }
+          : null;
+        const session = await ReaderSession.open(containerRef.current!, file, saved);
         if (cancelled) {
           session.close();
           return;
         }
         sessionRef.current = session;
+        session.onRelocate = scheduleProgressSave;
         setToc(session.toc);
         applyStyles(session);
       } catch (err) {
@@ -77,8 +121,10 @@ export const BookReader: React.FC<BookReaderProps> = ({ book, onClose }) => {
       cancelled = true;
       sessionRef.current?.close();
       sessionRef.current = null;
+      // Flush any pending position so leaving the book never loses the page.
+      flushProgress();
     };
-  }, [book.id, book.title, applyStyles]);
+  }, [book.id, book.title, applyStyles, scheduleProgressSave, flushProgress]);
 
   // Android hardware back: close the TOC drawer first, then the reader.
   useEffect(() => {

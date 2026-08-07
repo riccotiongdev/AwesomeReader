@@ -13,6 +13,8 @@ import {
   InvalidBookError,
   buildReaderCss,
   READER_THEME_CSS,
+  locationToSerializable,
+  resolveInitialLocation,
   tocToItems,
 } from './folio-adapter';
 
@@ -81,5 +83,33 @@ describe('reader surface (ticket 04)', () => {
     const css = buildReaderCss('sepia', 130);
     expect(css).toContain('#f4ecd8');
     expect(css).toContain('font-size: 130%');
+  });
+});
+
+describe('progress location (ticket 05)', () => {
+  it('extracts the serializable subset of a relocate detail', () => {
+    // The raw detail carries a DOM Range and section/time bookkeeping.
+    const detail = {
+      cfi: 'epubcfi(/6/4)',
+      fraction: 0.42,
+      range: { startContainer: {}, endContainer: {} },
+      section: { current: 1, total: 3 },
+      time: { total: 1200 },
+    };
+    expect(locationToSerializable(detail)).toEqual({ cfi: 'epubcfi(/6/4)', fraction: 0.42 });
+  });
+
+  it('handles details missing cfi or fraction', () => {
+    expect(locationToSerializable({ fraction: 0.5 })).toEqual({ cfi: null, fraction: 0.5 });
+    expect(locationToSerializable({ cfi: 'x' })).toEqual({ cfi: 'x', fraction: null });
+    expect(locationToSerializable(null)).toEqual({ cfi: null, fraction: null });
+    expect(locationToSerializable(undefined)).toEqual({ cfi: null, fraction: null });
+  });
+
+  it('prefers the exact CFI for resuming, then the fraction, then the start', () => {
+    expect(resolveInitialLocation({ cfi: 'epubcfi(/6/4)', fraction: 0.5 })).toBe('epubcfi(/6/4)');
+    expect(resolveInitialLocation({ cfi: null, fraction: 0.5 })).toEqual({ fraction: 0.5 });
+    expect(resolveInitialLocation({ cfi: null, fraction: null })).toBeUndefined();
+    expect(resolveInitialLocation(null)).toBeUndefined();
   });
 });
