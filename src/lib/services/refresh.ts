@@ -52,6 +52,12 @@ export interface FeedRefreshOutcome {
 export interface RefreshOptions {
   /** Max number of feeds crawled at once. Higher = faster but hammers servers. */
   concurrency?: number;
+  /**
+   * Invoked as soon as a single feed finishes crawling, in completion order
+   * (not the order of the input list). Lets the UI show each feed's articles
+   * the moment they are saved instead of waiting for the whole refresh.
+   */
+  onFeedComplete?: (outcome: FeedRefreshOutcome) => void | Promise<void>;
 }
 
 export const DEFAULT_REFRESH_CONCURRENCY = 4;
@@ -131,5 +137,13 @@ export async function refreshFeedsForView(
   const concurrency = options.concurrency ?? DEFAULT_REFRESH_CONCURRENCY;
 
   // Crawl feeds in parallel (bounded), but keep outcome order aligned with the feed list.
-  return mapWithConcurrency(inScope, concurrency, (feed) => refreshFeed(feed, deps, fetchedAt));
+  // Each feed's onFeedComplete notification is delivered as soon as that feed finishes,
+  // so callers can stream results into the UI without waiting for the full refresh.
+  return mapWithConcurrency(inScope, concurrency, async (feed) => {
+    const outcome = await refreshFeed(feed, deps, fetchedAt);
+    if (options.onFeedComplete) {
+      await options.onFeedComplete(outcome);
+    }
+    return outcome;
+  });
 }

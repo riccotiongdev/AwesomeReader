@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { Feed } from '@/types';
-import { resolveFeedScope, refreshFeedsForView, RefreshDeps } from '@/lib/services/refresh';
+import {
+  resolveFeedScope,
+  refreshFeedsForView,
+  RefreshDeps,
+  FeedRefreshOutcome,
+} from '@/lib/services/refresh';
 const makeFeed = (id: string, folderId: string | null = null): Feed => ({
   id,
   folder_id: folderId,
@@ -223,5 +228,66 @@ describe('refreshFeedsForView', () => {
     );
 
     expect(outcomes.map((o) => o.feedId)).toEqual(['f2', 'f3', 'f4']);
+  });
+});
+
+describe('refreshFeedsForView onFeedComplete callback', () => {
+  it('reports each feed outcome as soon as that feed finishes, in completion order', async () => {
+    const completed: FeedRefreshOutcome[] = [];
+    const fetchFeed = vi.fn(async (url: string) => {
+      // f3 crawls much slower than f2, so f2 must be reported first
+      await new Promise((r) => setTimeout(r, url.includes('f3') ? 40 : 5));
+      return { notModified: false, result: { feedTitle: 'F', articles: [] } };
+    });
+    const deps = makeDeps({ fetchFeed });
+
+    await refreshFeedsForView(
+      [feeds[1], feeds[2]],
+      { selectedFeedId: null, selectedFolderId: null },
+      deps,
+      {
+        concurrency: 2,
+        onFeedComplete: (outcome) => {
+          completed.push(outcome);
+        },
+      }
+    );
+
+    expect(completed).toHaveLength(2);
+    expect(completed.map((o) => o.feedId)).toEqual(['f2', 'f3']);
+  });
+
+  it('awaits the callback so the refresh promise resolves only after all notifications', async () => {
+    let notified = false;
+    const deps = makeDeps();
+
+    await refreshFeedsForView([feeds[0]], { selectedFeedId: 'f1', selectedFolderId: null }, deps, {
+      onFeedComplete: async () => {
+        await new Promise((r) => setTimeout(r, 20));
+        notified = true;
+      },
+    });
+
+    expect(notified).toBe(true);
+  });
+
+  it('fires for every outcome, including not_modified and error', async () => {
+    const completed: FeedRefreshOutcome[] = [];
+    const deps = makeDeps({
+      fetchFeed: vi.fn(async (url: string) => {
+        if (url.includes('f2')) throw new Error('boom');
+        return { notModified: true };
+      }),
+    });
+
+    await refreshFeedsForView(
+      [feeds[1], feeds[2]],
+      { selectedFeedId: null, selectedFolderId: 'folderA' },
+      deps,
+      { onFeedComplete: (o) => { completed.push(o); } }
+    );
+
+    expect(completed.map((o) => o.feedId)).toEqual(['f2', 'f3']);
+    expect(completed.map((o) => o.status).sort()).toEqual(['error', 'not_modified']);
   });
 });

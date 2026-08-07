@@ -176,6 +176,19 @@ export default function HomePage() {
     setFeeds(dbFeeds);
   }, []);
 
+  // Merge one feed's freshly-crawled articles into the visible list, replacing that
+  // feed's previous entries. Called per feed as each one finishes refreshing, so
+  // articles stream into the list and the user can read what loaded first.
+  const mergeFeedArticlesIntoList = useCallback(async (feedId: string) => {
+    const freshArticles = await clientDb.getArticles({ feedId });
+    setArticles((prev) => {
+      const kept = prev.filter((a) => a.feed_id !== feedId);
+      return [...kept, ...freshArticles].sort(
+        (a, b) => new Date(b.published_at).getTime() - new Date(a.published_at).getTime()
+      );
+    });
+  }, []);
+
   // Load Articles from Client IndexedDB
   const loadArticles = useCallback(async () => {
     const list = await clientDb.getArticles({
@@ -345,6 +358,17 @@ export default function HomePage() {
           saveArticles: (articles) => clientDb.saveArticles(articles),
           updateFeedCrawlState: (feedId, state) => clientDb.updateFeedCrawlState(feedId, state),
           now: () => new Date().toISOString(),
+        },
+        {
+          // Progressive loading: as soon as a feed finishes crawling, merge its
+          // articles into the list so the user can read them while the rest of
+          // the feeds are still being refreshed.
+          onFeedComplete: async (outcome) => {
+            if (outcome.status === 'updated') {
+              await mergeFeedArticlesIntoList(outcome.feedId);
+            }
+            await loadFeedsAndFolders();
+          },
         }
       );
 
@@ -357,7 +381,14 @@ export default function HomePage() {
 
       await loadFeedsAndFolders();
       await loadArticles();
-      scrollToTop();
+
+      // Don't yank the user away from what they've been reading during a
+      // progressive refresh — only jump to the top if they haven't scrolled yet.
+      const scrollTop =
+        window.scrollY || document.documentElement.scrollTop || mainRef.current?.scrollTop || 0;
+      if (scrollTop === 0) {
+        scrollToTop();
+      }
     } finally {
       setIsRefreshing(false);
     }
