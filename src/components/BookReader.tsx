@@ -141,7 +141,9 @@ export const BookReader: React.FC<BookReaderProps> = ({ book, onClose }) => {
     };
   }, [onClose]);
 
-  // Web: Escape closes the reader (TOC drawer first).
+  // Web: Escape closes the reader (TOC drawer first); ←/→ turn pages.
+  // Capture phase: after clicking into the book, key events originate in the
+  // engine's same-origin iframe, which still propagates to the window here.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -151,10 +153,16 @@ export const BookReader: React.FC<BookReaderProps> = ({ book, onClose }) => {
         } else {
           onClose();
         }
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        sessionRef.current?.goLeft();
+      } else if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        sessionRef.current?.goRight();
       }
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
   }, [onClose]);
 
   const setTocOpenBoth = useCallback((open: boolean) => {

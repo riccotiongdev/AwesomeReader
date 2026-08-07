@@ -23,7 +23,7 @@
 - **Shelf**: grid of book covers with title, author, and a per-book reading-progress bar ("Finished" once completed). Delete with confirmation.
 - **Full-Screen Reader**: paginated rendering powered by **foliate-js** (the engine behind Foliate/Readest), reached only through a thin adapter seam. OLED/Sepia/Light reader themes, A−/A+ font-size presets, and a table-of-contents drawer with nested chapters.
 - **Progress Save & Resume**: your position auto-saves as you read (debounced, flushed when you leave) and resumes exactly where you left off — including after app restarts. Finishing a book marks it complete and the next open starts from the top.
-- **Navigation**: tap the on-page ‹ › arrows, swipe (touch), or scroll (wheel). Android hardware back returns from the reader to the shelf.
+- **Navigation**: tap the on-page ‹ › arrows, swipe (touch), scroll (wheel), or press the ←/→ arrow keys on a keyboard. Android hardware back returns from the reader to the shelf.
 
 ---
 
