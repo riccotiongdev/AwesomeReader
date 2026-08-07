@@ -4,7 +4,20 @@
 
 **Blocked by:** None — can start immediately.
 
-**Status:** ready-for-agent
+**Status:** resolved
+
+## Answer
+
+Implemented and committed (`5527ca4`).
+
+- `AppShell` owns the News|Books choice; persisted via `src/lib/space/space-mode.ts` (localStorage key `awesomereader_space`, defaults to news, guards unavailable storage). Unit-tested (5 cases, node env with storage stub).
+- Desktop: segmented `SpaceSwitcher` pill rendered in both spaces' headers (News header via optional props threaded `HomePage → Header`; Books header inside `BooksSpace`).
+- Mobile (≤520px): fixed `BottomTabBar` with safe-area inset; content (`space-news`/`space-books`) gets bottom padding, the Mark-All-Read FAB lifts above the bar.
+- Both spaces stay mounted — the inactive one is CSS-hidden — so News state (open article, scroll, modals) survives switching.
+- Android back no longer exits the app while in the Books space (`space !== 'books'` guard in HomePage's back handler).
+- News is regression-free: all changes are additive optional props; `npm test` 77/77, `npm run build` green, APK rebuilt.
+
+Known follow-ups (outside this ticket): Books back-button flow (reader → shelf) lands with the reader in tickets 04/05.
 
 - [ ] Launch defaults to last-used mode (News on first launch)
 - [ ] One-tap switch between News and Books from anywhere; switcher visible in both spaces
