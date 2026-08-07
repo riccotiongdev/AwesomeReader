@@ -1,6 +1,8 @@
 'use client';
 
 import React from 'react';
+import { Space } from '@/lib/space/space-mode';
+import { SpaceSwitcher } from '@/components/SpaceSwitcher';
 
 interface HeaderProps {
   activeTab: 'all' | 'unread' | 'starred';
@@ -10,6 +12,10 @@ interface HeaderProps {
   onRefresh: () => void;
   onToggleSidebar: () => void;
   isRefreshing: boolean;
+  // Optional top-level space switcher (ADR-0003): rendered in the header on
+  // desktop; mobile uses the bottom tab bar instead.
+  space?: Space;
+  onSpaceChange?: (space: Space) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -20,6 +26,8 @@ export const Header: React.FC<HeaderProps> = ({
   onRefresh,
   onToggleSidebar,
   isRefreshing,
+  space,
+  onSpaceChange,
 }) => {
   return (
     <header className="header">
@@ -35,6 +43,9 @@ export const Header: React.FC<HeaderProps> = ({
           <span className="logo-icon">📖</span>
           <span className="logo-text">AwesomeReader</span>
         </div>
+        {space && onSpaceChange && (
+          <SpaceSwitcher space={space} onSpaceChange={onSpaceChange} />
+        )}
       </div>
 
       <div className="header-center">

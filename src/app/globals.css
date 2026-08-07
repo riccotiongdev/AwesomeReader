@@ -1520,6 +1520,19 @@ body {
   .mobile-only {
     display: flex;
   }
+  .space-switcher {
+    display: none;
+  }
+  .bottom-tab-bar {
+    display: flex;
+  }
+  .space-news,
+  .space-books {
+    padding-bottom: calc(60px + env(safe-area-inset-bottom));
+  }
+  .fab-mark-all-read {
+    bottom: calc(5.25rem + env(safe-area-inset-bottom));
+  }
   .logo-text, .search-bar {
     display: none;
   }
@@ -2050,3 +2063,115 @@ body {
   }
 }
 
+
+/* ===== Two-space shell (ADR-0003): News | Books ===== */
+
+/* Desktop segmented switcher pill — hidden on mobile (bottom tab bar instead) */
+.space-switcher {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 2px;
+}
+
+.space-switch-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  padding: 5px 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.space-switch-btn.active {
+  background: var(--card-bg);
+  color: var(--text-primary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Mobile bottom tab bar — hidden on desktop */
+.bottom-tab-bar {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 150;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.bottom-tab {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 0 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.bottom-tab .bottom-tab-icon {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.bottom-tab.active {
+  color: var(--accent);
+}
+
+/* Space wrappers: the inactive space stays mounted (display:none via hidden)
+   so its React state and scroll position survive switching. */
+.space {
+  min-width: 0;
+}
+
+/* Books space placeholder (ticket 02; real shelf lands in ticket 03) */
+.books-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.books-header .header-center {
+  justify-content: center;
+}
+
+.books-body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.books-empty {
+  text-align: center;
+  max-width: 360px;
+  color: var(--text-secondary);
+}
+
+.books-empty .empty-icon {
+  font-size: 3rem;
+  display: block;
+}
+
+.books-empty h2 {
+  margin: 0.75rem 0 0.4rem;
+  color: var(--text-primary);
+  font-size: 1.3rem;
+}

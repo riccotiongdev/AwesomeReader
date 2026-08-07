@@ -15,6 +15,7 @@ import { FeedPreviewModal } from '@/components/FeedPreviewModal';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { ToastContainer, ToastItem } from '@/components/ToastContainer';
 import { Folder, Feed, Article } from '@/types';
+import { Space } from '@/lib/space/space-mode';
 import { clientDb } from '@/lib/db/dexie-db';
 import { fetchAndParseFeed } from '@/lib/services/feed-crawler';
 import { refreshFeedsForView } from '@/lib/services/refresh';
@@ -33,7 +34,13 @@ interface NavigationBarPluginInterface {
 
 const NavigationBar = registerPlugin<NavigationBarPluginInterface>('NavigationBar');
 
-export default function HomePage() {
+export interface HomePageProps {
+  /** Top-level space (ADR-0003). Optional so News renders standalone too. */
+  space?: Space;
+  onSpaceChange?: (space: Space) => void;
+}
+
+export default function HomePage({ space, onSpaceChange }: HomePageProps = {}) {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [feeds, setFeeds] = useState<Feed[]>([]);
   const [articles, setArticles] = useState<Article[]>([]);
@@ -166,7 +173,9 @@ export default function HomePage() {
         setIsSettingsOpen(false);
       } else if (isSidebarMobileOpen) {
         setIsSidebarMobileOpen(false);
-      } else {
+      } else if (space !== 'books') {
+        // In the Books space (shell), back has nothing to close here — the
+        // shelf/reader handle their own back flow (tickets 04/05). Don't exit.
         App.exitApp();
       }
     });
@@ -174,7 +183,7 @@ export default function HomePage() {
     return () => {
       handleBackButton.then((h) => h.remove());
     };
-  }, [activeArticle, isCreateFolderOpen, isAddFeedOpen, isOpmlOpen, isSettingsOpen, isSidebarMobileOpen]);
+  }, [activeArticle, isCreateFolderOpen, isAddFeedOpen, isOpmlOpen, isSettingsOpen, isSidebarMobileOpen, space]);
 
   // Theme Sync & Persistence
   useEffect(() => {
@@ -680,6 +689,8 @@ export default function HomePage() {
         onRefresh={handleRefresh}
         onToggleSidebar={() => setIsSidebarMobileOpen((prev) => !prev)}
         isRefreshing={isRefreshing}
+        space={space}
+        onSpaceChange={onSpaceChange}
       />
 
       <div className="main-content-container">

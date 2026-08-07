@@ -1,6 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import HomePage from './app/page';
+import AppShell from './components/AppShell';
 import SpikeHarness from './components/SpikeHarness';
 import './app/globals.css';
 
@@ -10,7 +10,7 @@ if (window.location.hash === '#spike') {
 } else {
   ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
-      <HomePage />
+      <AppShell />
     </React.StrictMode>
   );
 }
