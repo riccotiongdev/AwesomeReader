@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Article } from '@/types';
+import { bodyLeadsWithImage } from '@/lib/utils/hero-image';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { Capacitor, registerPlugin } from '@capacitor/core';
 
@@ -119,9 +120,13 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
     };
   }, [article]);
 
-  if (!article) return null;
+  const contentToDisplay = article?.full_content || article?.content || article?.summary || '';
+  const bodyLeadsWithHero = useMemo(
+    () => bodyLeadsWithImage(contentToDisplay, article?.image_url),
+    [contentToDisplay, article]
+  );
 
-  const contentToDisplay = article.full_content || article.content || article.summary || '';
+  if (!article) return null;
 
   return (
     <div className="reader-modal-backdrop animate-fade-in" data-reader-theme={theme}>
@@ -243,8 +248,8 @@ export const ArticleReaderModal: React.FC<ArticleReaderModalProps> = ({
             )}
           </div>
 
-          {/* Hero Lead Image Before Text Content */}
-          {article.image_url && (
+          {/* Hero Lead Image Before Text Content — skipped when the body already leads with the same image */}
+          {article.image_url && !bodyLeadsWithHero && (
             <div className="reader-hero-image-wrapper">
               <img
                 src={article.image_url}
