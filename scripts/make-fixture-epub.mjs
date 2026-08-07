@@ -45,8 +45,10 @@ write(
     <dc:creator>AwesomeReader Fixtures</dc:creator>
     <dc:language>en</dc:language>
     <meta property="dcterms:modified">2026-02-18T00:00:00Z</meta>
+    <meta name="cover" content="cover-image"/>
   </metadata>
   <manifest>
+    <item id="cover-image" href="cover.svg" media-type="image/svg+xml" properties="cover-image"/>
     <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
     <item id="style" href="style.css" media-type="text/css"/>
     <item id="ch1" href="ch1.xhtml" media-type="application/xhtml+xml"/>
@@ -86,6 +88,17 @@ write(
   'OEBPS/style.css',
   `body { font-family: Georgia, serif; line-height: 1.6; }
 h1 { font-size: 1.8em; margin-bottom: 0.5em; }
+`
+);
+
+// Tiny SVG cover so the adapter's getCover() path and the shelf's cover
+// rendering are exercised by the fixture.
+write(
+  'OEBPS/cover.svg',
+  `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="24" viewBox="0 0 16 24">
+  <rect width="16" height="24" fill="#0a84ff"/>
+  <text x="8" y="14" font-size="5" fill="#ffffff" text-anchor="middle" font-family="sans-serif">MINI</text>
+</svg>
 `
 );
 

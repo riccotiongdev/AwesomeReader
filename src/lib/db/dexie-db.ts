@@ -1,10 +1,12 @@
+
 import Dexie, { Table } from 'dexie';
-import { Folder, Feed, Article } from '@/types';
+import { Folder, Feed, Article, Book } from '@/types';
 
 export class AwesomeReaderDB extends Dexie {
   folders!: Table<Folder, string>;
   feeds!: Table<Feed, string>;
   articles!: Table<Article, string>;
+  books!: Table<Book, string>;
 
   constructor() {
     super('AwesomeReaderDB');
@@ -13,9 +15,67 @@ export class AwesomeReaderDB extends Dexie {
       feeds: 'id, folder_id, title, feed_url, status',
       articles: 'id, feed_id, guid, published_at, is_read, is_starred, [feed_id+guid]',
     });
+    // v2 adds the Books space (ADR-0001/0003): EPUB blobs + metadata + progress.
+    this.version(2).stores({
+      folders: 'id, name, sort_order',
+      feeds: 'id, folder_id, title, feed_url, status',
+      articles: 'id, feed_id, guid, published_at, is_read, is_starred, [feed_id+guid]',
+      books: 'id, title, added_at',
+    });
   }
 
-  // Folder Helper Methods
+  // Book Helper Methods (Books space, ADR-0001)
+  async addBook(input: {
+    blob: Blob;
+    title: string;
+    author: string | null;
+    cover?: Blob | null;
+  }): Promise<Book> {
+    const book: Book = {
+      id: `book_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      title: input.title,
+      author: input.author,
+      cover: input.cover ?? null,
+      blob: input.blob,
+      added_at: new Date().toISOString(),
+      progress: null,
+      location: null,
+    };
+    await this.books.put(book);
+    return book;
+  }
+
+  /** Shelf order: most recently imported first. */
+  async getBooks(): Promise<Book[]> {
+    return this.books.orderBy('added_at').reverse().toArray();
+  }
+
+  async getBookBlob(id: string): Promise<Blob | null> {
+    const book = await this.books.get(id);
+    return book?.blob ?? null;
+  }
+
+  async deleteBook(id: string): Promise<void> {
+    await this.books.delete(id);
+  }
+
+  /**
+   * Duplicate detection for import: normalized (case/whitespace-insensitive)
+   * title + author match. Authorless books match on title alone via '' == ''.
+   */
+  async findBookByTitleAuthor(title: string, author: string | null): Promise<Book | null> {
+    const normalizedTitle = title.trim().toLowerCase();
+    const normalizedAuthor = (author ?? '').trim().toLowerCase();
+    const books = await this.books.toArray();
+    return (
+      books.find(
+        (b) =>
+          b.title.trim().toLowerCase() === normalizedTitle &&
+          (b.author ?? '').trim().toLowerCase() === normalizedAuthor
+      ) ?? null
+    );
+  }
+
   async getFolders(): Promise<Folder[]> {
     const folderList = await this.folders.orderBy('sort_order').toArray();
     const allArticles = await this.articles.toArray();

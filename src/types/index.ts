@@ -43,6 +43,19 @@ export interface Article {
   created_at: string;
 }
 
+export interface Book {
+  id: string;
+  title: string;
+  author: string | null;
+  cover: Blob | null;
+  blob: Blob;
+  added_at: string;
+  /** 0..1 reading progress — written by the reader (ticket 05); null = never opened. */
+  progress: number | null;
+  /** Engine location token for resuming — written by the reader (ticket 05). */
+  location: string | null;
+}
+
 export interface OPMLFeed {
   title: string;
   xmlUrl: string;
