@@ -2338,6 +2338,7 @@ body {
   flex: 1;
   min-height: 0;
   display: flex;
+  position: relative;
 }
 
 .book-reader-viewport {
@@ -2519,4 +2520,58 @@ body {
   font-size: 0.7rem;
   color: var(--text-secondary);
   flex-shrink: 0;
+}
+
+/* Page-turn arrows (ticket 04 fix): the engine only handles swipe/wheel
+   natively, so explicit controls are needed for mouse and discoverability. */
+.page-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 5;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0.5;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  transition: opacity 0.15s ease, background 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.page-arrow:hover {
+  opacity: 1;
+  background: var(--card-bg);
+}
+
+.page-arrow:active {
+  opacity: 1;
+}
+
+.page-arrow-prev {
+  left: 8px;
+}
+
+.page-arrow-next {
+  right: 8px;
+}
+
+@media (max-width: 520px) {
+  .page-arrow {
+    width: 38px;
+    height: 38px;
+    opacity: 0.85;
+  }
+  .page-arrow-prev {
+    left: 6px;
+  }
+  .page-arrow-next {
+    right: 6px;
+  }
 }

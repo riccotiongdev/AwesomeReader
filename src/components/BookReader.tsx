@@ -265,7 +265,32 @@ export const BookReader: React.FC<BookReaderProps> = ({ book, onClose }) => {
             </button>
           </div>
         ) : (
-          <div ref={containerRef} className="book-reader-viewport" />
+          <>
+            <div ref={containerRef} className="book-reader-viewport" />
+            {/* Page-turn controls: the engine only handles touch-swipe/wheel
+                natively, so desktop (and discoverability on mobile) needs
+                explicit arrows wired to the session. */}
+            <button
+              className="page-arrow page-arrow-prev"
+              onClick={() => sessionRef.current?.goLeft()}
+              aria-label="Previous page"
+              title="Previous page"
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
+                <polyline points="15 18 9 12 15 6"></polyline>
+              </svg>
+            </button>
+            <button
+              className="page-arrow page-arrow-next"
+              onClick={() => sessionRef.current?.goRight()}
+              aria-label="Next page"
+              title="Next page"
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </button>
+          </>
         )}
       </div>
 

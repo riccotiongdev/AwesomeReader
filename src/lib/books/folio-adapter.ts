@@ -200,6 +200,15 @@ export class ReaderSession {
     await this.view?.prev();
   }
 
+  /** Direction-aware page turns (RTL books swap the arrows). */
+  async goRight(): Promise<void> {
+    await this.view?.goRight();
+  }
+
+  async goLeft(): Promise<void> {
+    await this.view?.goLeft();
+  }
+
   close(): void {
     try {
       this.view?.close?.();
