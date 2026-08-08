@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import HomePage from '@/app/page';
 import { BooksSpace } from '@/components/BooksSpace';
-import { BottomTabBar } from '@/components/BottomTabBar';
 import { loadSpace, saveSpace, Space } from '@/lib/space/space-mode';
 
 /**
@@ -28,7 +27,6 @@ export default function AppShell() {
       <div className="space space-books" hidden={space !== 'books'}>
         <BooksSpace space={space} onSpaceChange={handleSpaceChange} />
       </div>
-      <BottomTabBar space={space} onSpaceChange={handleSpaceChange} />
     </>
   );
 }

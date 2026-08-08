@@ -221,19 +221,6 @@ body {
   gap: 0.75rem;
 }
 
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-weight: 700;
-  font-size: 1.15rem;
-  letter-spacing: -0.02em;
-}
-
-.logo-icon {
-  font-size: 1.3rem;
-}
-
 .header-center {
   display: flex;
   align-items: center;
@@ -1520,20 +1507,13 @@ body {
   .mobile-only {
     display: flex;
   }
+  /* The switcher pill is a div: without an explicit display:none here it
+     falls back to display:block and still renders on mobile (the desktop
+     rules live in a min-width media query and don't apply). */
   .space-switcher {
     display: none;
   }
-  .bottom-tab-bar {
-    display: flex;
-  }
-  .space-news,
-  .space-books {
-    padding-bottom: calc(60px + env(safe-area-inset-bottom));
-  }
-  .fab-mark-all-read {
-    bottom: calc(5.25rem + env(safe-area-inset-bottom));
-  }
-  .logo-text, .search-bar {
+  .search-bar {
     display: none;
   }
   .sidebar {
@@ -2066,72 +2046,122 @@ body {
 
 /* ===== Two-space shell (ADR-0003): News | Books ===== */
 
-/* Desktop segmented switcher pill — hidden on mobile (bottom tab bar instead) */
-.space-switcher {
-  display: flex;
+/* Desktop segmented switcher pill — mobile shows the current-mode chip
+   (`.space-mode-btn`) with a picker modal instead (ADR-0003 placement
+   refinement: the bottom tab bar was retired). */
+@media (min-width: 521px) {
+  .space-switcher {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 2px;
+  }
+
+  .space-switch-btn {
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    padding: 5px 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+  }
+
+  .space-switch-btn.active {
+    background: var(--card-bg);
+    color: var(--text-primary);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+}
+
+/* Mobile header mode button (ADR-0003): shows only the current space and
+   opens a picker modal on tap. `.mobile-only` hides it on desktop, where
+   the segmented `.space-switcher` pill lives instead. */
+.space-mode-btn {
   align-items: center;
-  gap: 2px;
+  gap: 0.4rem;
   background: var(--bg-tertiary);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 2px;
-}
-
-.space-switch-btn {
-  border: none;
-  background: transparent;
-  color: var(--text-secondary);
-  padding: 5px 12px;
-  font-size: 0.8rem;
+  padding: 6px 10px;
+  font-size: 0.85rem;
   font-weight: 600;
-  border-radius: 6px;
+  color: var(--text-primary);
   cursor: pointer;
-  transition: all 0.2s ease;
+  -webkit-tap-highlight-color: transparent;
   white-space: nowrap;
 }
 
-.space-switch-btn.active {
-  background: var(--card-bg);
-  color: var(--text-primary);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+.space-mode-btn:active {
+  transform: scale(0.97);
 }
 
-/* Mobile bottom tab bar — hidden on desktop */
-.bottom-tab-bar {
-  display: none;
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 150;
-  background: var(--bg-secondary);
-  border-top: 1px solid var(--border);
-  padding-bottom: env(safe-area-inset-bottom);
+.space-mode-chevron {
+  color: var(--text-muted);
 }
 
-.bottom-tab {
-  flex: 1;
+.space-mode-modal {
+  max-width: 360px;
+}
+
+.space-mode-options {
   display: flex;
   flex-direction: column;
+  gap: 0.6rem;
+}
+
+.space-mode-option {
+  display: flex;
   align-items: center;
-  gap: 2px;
-  padding: 8px 0 6px;
-  border: none;
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 0.7rem;
-  font-weight: 600;
+  gap: 0.9rem;
+  width: 100%;
+  text-align: left;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
   cursor: pointer;
+  color: var(--text-primary);
   -webkit-tap-highlight-color: transparent;
 }
 
-.bottom-tab .bottom-tab-icon {
-  font-size: 1.15rem;
+.space-mode-option.active {
+  background: var(--card-bg);
+  border-color: var(--accent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.space-mode-option-icon {
+  font-size: 1.5rem;
   line-height: 1;
 }
 
-.bottom-tab.active {
-  color: var(--accent);
+.space-mode-option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.space-mode-option-label {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.space-mode-option-desc {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.space-mode-option-check {
+  flex-shrink: 0;
 }
 
 /* Space wrappers: the inactive space stays mounted (display:none via hidden)
@@ -2145,10 +2175,6 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-}
-
-.books-header .header-center {
-  justify-content: center;
 }
 
 .books-body {

@@ -3,6 +3,7 @@
 import React from 'react';
 import { Space } from '@/lib/space/space-mode';
 import { SpaceSwitcher } from '@/components/SpaceSwitcher';
+import { SpaceModeButton } from '@/components/SpaceModeButton';
 
 interface HeaderProps {
   activeTab: 'all' | 'unread' | 'starred';
@@ -39,10 +40,9 @@ export const Header: React.FC<HeaderProps> = ({
             <line x1="3" y1="18" x2="21" y2="18"></line>
           </svg>
         </button>
-        <div className="logo">
-          <span className="logo-icon">📖</span>
-          <span className="logo-text">AwesomeReader</span>
-        </div>
+        {space && onSpaceChange && (
+          <SpaceModeButton space={space} onSpaceChange={onSpaceChange} />
+        )}
         {space && onSpaceChange && (
           <SpaceSwitcher space={space} onSpaceChange={onSpaceChange} />
         )}

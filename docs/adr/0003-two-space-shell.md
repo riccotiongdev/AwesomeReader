@@ -16,3 +16,13 @@ The app gains two top-level **spaces**: **News** (everything existing) and **Boo
 - Switching modes is one tap and state (open book, scroll positions) survives per mode.
 - No dead-end landing screen; the "choose on entry" feel comes from the default-to-last-used behavior.
 - Android hardware back in the reader returns to the shelf, then to the previous mode.
+
+## Amendment (placement refinement)
+
+**Date:** 2026-02-18 (later session)
+
+Header crowding from the desktop pill plus the mobile bottom tab bar led to a placement refinement, keeping the decision (persistent top-level switcher, default to last-used) intact:
+
+- **Desktop (> 520px):** the segmented **News | Books pill lives in the header's left slot**, replacing the logo.
+- **Mobile (<= 520px):** the bottom tab bar was **retired** (it never rendered due to a CSS source-order bug). The header shows a **chip with only the current mode** ("📰 News" / "📚 Books"), which opens a **modal picker** to switch. The logo is removed at both breakpoints.
+- Space state (open article/book, scroll) still survives switching unchanged.

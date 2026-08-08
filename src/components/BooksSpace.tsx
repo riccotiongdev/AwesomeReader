@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Space } from '@/lib/space/space-mode';
 import { SpaceSwitcher } from '@/components/SpaceSwitcher';
+import { SpaceModeButton } from '@/components/SpaceModeButton';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { ToastContainer, ToastItem } from '@/components/ToastContainer';
 import { BookReader } from '@/components/BookReader';
@@ -140,12 +141,7 @@ export const BooksSpace: React.FC<BooksSpaceProps> = ({ space, onSpaceChange }) 
     <div className="books-layout">
       <header className="header books-header">
         <div className="header-left">
-          <div className="logo">
-            <span className="logo-icon">📚</span>
-            <span className="logo-text">Books</span>
-          </div>
-        </div>
-        <div className="header-center">
+          <SpaceModeButton space={space} onSpaceChange={onSpaceChange} />
           <SpaceSwitcher space={space} onSpaceChange={onSpaceChange} />
         </div>
         <div className="header-right">
