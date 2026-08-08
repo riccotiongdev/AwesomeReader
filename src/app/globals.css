@@ -121,7 +121,10 @@ body {
 .timeline-area {
   flex: 1;
   min-width: 0;
-  padding: 1.25rem 1.5rem;
+  /* No top padding: the sticky .timeline-header must rest at exactly the
+     app-header height (60px) so its natural position equals its pinned
+     position — otherwise it drifts upward on the first pixels of scroll. */
+  padding: 0 1.5rem 1.25rem;
   max-width: 860px;
   margin: 0 auto;
   width: 100%;
@@ -134,11 +137,21 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  margin-bottom: 1.25rem;
-  padding-bottom: 0.75rem;
+  /* Symmetric with padding-bottom: keeps the bar's text clear of the app
+     header above. Box top stays pinned at 60px (padding moves content
+     inside the box, not the box), so no scroll drift is introduced. */
+  padding: 0.75rem 0;
   border-bottom: 1px solid var(--border);
   min-width: 0;
   width: 100%;
+  /* Sticky below the 60px app header so the filter pill (and count)
+     stay reachable while scrolling the list. Same scroll context as
+     .header and .sidebar (document scroller); opaque background so
+     cards don't show through, and z-index below the header's 100. */
+  position: sticky;
+  top: 60px;
+  z-index: 90;
+  background: var(--bg-primary);
 }
 
 .timeline-header h2 {
@@ -150,6 +163,14 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.timeline-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  /* Keep count + pill at full size on the right; the title ellipsizes. */
+  flex-shrink: 0;
 }
 
 .count-badge {
@@ -236,18 +257,22 @@ body {
   padding: 3px;
   border-radius: 8px;
   gap: 2px;
+  /* Flex item inside the timeline-header row: never let a long feed
+     title crush the pill (the h2 ellipsizes instead). */
+  flex-shrink: 0;
 }
 
 .tab-btn {
   border: none;
   background: transparent;
   color: var(--text-secondary);
-  padding: 6px 14px;
-  font-size: 0.85rem;
+  padding: 5px 10px;
+  font-size: 0.8rem;
   font-weight: 500;
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
+  white-space: nowrap;
 }
 
 .tab-btn.active {
@@ -1516,6 +1541,12 @@ body {
   .search-bar {
     display: none;
   }
+  /* The filter pill now shares the timeline-header row with the title;
+     on small screens the count badge gives way so the feed title keeps
+     room to ellipsize gracefully. */
+  .count-badge {
+    display: none;
+  }
   .sidebar {
     position: fixed;
     top: 0;
@@ -1533,7 +1564,7 @@ body {
     display: block;
   }
   .timeline-area {
-    padding: 0.75rem;
+    padding: 0 0.75rem 0.75rem;
   }
 }
 
@@ -1558,7 +1589,7 @@ body {
     width: 200px;
   }
   .timeline-area {
-    padding: 1rem 0.85rem;
+    padding: 0 0.85rem 1rem;
   }
   .meta-left .feed-title {
     max-width: 90px;
@@ -1590,7 +1621,7 @@ body {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 60%;
+    min-width: 0;
   }
 }
 

@@ -6,8 +6,6 @@ import { SpaceSwitcher } from '@/components/SpaceSwitcher';
 import { SpaceModeButton } from '@/components/SpaceModeButton';
 
 interface HeaderProps {
-  activeTab: 'all' | 'unread' | 'starred';
-  setActiveTab: (tab: 'all' | 'unread' | 'starred') => void;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   onRefresh: () => void;
@@ -20,8 +18,6 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({
-  activeTab,
-  setActiveTab,
   searchQuery,
   setSearchQuery,
   onRefresh,
@@ -49,27 +45,9 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       <div className="header-center">
-        <div className="filter-tabs">
-          <button
-            className={`tab-btn ${activeTab === 'unread' ? 'active' : ''}`}
-            onClick={() => setActiveTab('unread')}
-          >
-            Unread
-          </button>
-          <button
-            className={`tab-btn ${activeTab === 'all' ? 'active' : ''}`}
-            onClick={() => setActiveTab('all')}
-          >
-            All
-          </button>
-          <button
-            className={`tab-btn ${activeTab === 'starred' ? 'active' : ''}`}
-            onClick={() => setActiveTab('starred')}
-          >
-            Starred ★
-          </button>
-        </div>
-
+        {/* The Unread|All|★ filter pill lives in the timeline header next
+            to the feed title at every width (see FilterTabs); this row
+            carries the search bar. */}
         <div className="search-bar">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <circle cx="11" cy="11" r="8"></circle>

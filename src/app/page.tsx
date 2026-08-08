@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Header } from '@/components/Header';
+import { FilterTabs } from '@/components/FilterTabs';
 import { SidebarDrawer } from '@/components/SidebarDrawer';
 import { ArticleCard } from '@/components/ArticleCard';
 import { ArticleReaderModal } from '@/components/ArticleReaderModal';
@@ -682,8 +683,6 @@ export default function HomePage({ space, onSpaceChange }: HomePageProps = {}) {
   return (
     <div className="app-layout">
       <Header
-        activeTab={activeTab}
-        setActiveTab={setActiveTab}
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}
         onRefresh={handleRefresh}
@@ -740,7 +739,14 @@ export default function HomePage({ space, onSpaceChange }: HomePageProps = {}) {
                   : 'All Subscriptions'
               )}
             </h2>
-            <span className="count-badge">{filteredArticles.length} articles</span>
+            <div className="timeline-header-right">
+              <span className="count-badge">{filteredArticles.length} articles</span>
+              {/* Filter pill: same spot at every width (see FilterTabs). */}
+              <FilterTabs
+                activeTab={activeTab}
+                setActiveTab={setActiveTab}
+              />
+            </div>
           </div>
 
           {filteredArticles.length === 0 ? (
