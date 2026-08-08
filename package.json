@@ -8,7 +8,7 @@
     "build": "tsc && vite build && npm run cap:sync && cd android && JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home ./gradlew assembleDebug && cd .. && cp android/app/build/outputs/apk/debug/app-debug.apk AwesomeReader.apk",
     "build:web": "tsc && vite build",
     "preview": "vite preview",
-    "test": "vitest run",
+    "test": "node scripts/check-responsive-css.mjs && vitest run",
     "test:watch": "vitest",
     "cap:sync": "cap sync android",
     "cap:ios": "cap open ios",

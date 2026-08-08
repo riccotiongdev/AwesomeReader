@@ -19,4 +19,5 @@ Single-context: one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agent
 - `npm run build` is the single build command. It runs: TypeScript check + Vite web build + `cap sync` + Android Gradle `assembleDebug` (JDK 17 via Homebrew) + copies the fresh APK to `AwesomeReader.apk` in the project root.
 - **Always run `npm run build` after making any change to the app** (source, styles, or config). The updated app must be reflected in the web bundle AND the rebuilt `AwesomeReader.apk`.
 - `npm run build:web` is the web-only build if a full APK build is not wanted.
-- Tests: `npm test` (vitest). Run the full suite after changes.
+- Tests: `npm test` (responsive-CSS guard + vitest). Run the full suite after changes.
+- **Responsive layout changes**: before declaring done, trace each touched selector's final `display` at the ≤520px and ≥521px breakpoints (a `<div>` with no `display` rule renders `block`), and verify the built `dist` CSS. `scripts/check-responsive-css.mjs` guards the header space-switcher rules and runs inside `npm test`.
